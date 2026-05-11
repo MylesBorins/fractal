@@ -39,15 +39,25 @@ const fsSource = `
         float c_y_h = uOffsetHi.y + fy * uZoomHi;
         float c_y_l = uOffsetLo.y + fy * uZoomLo;
 
+        // Julia set constant (fixed c for Julia)
+        vec2 juliaC = vec2(-0.7, 0.27015);
+
         // z in DS: z = (z_h + z_l)
-        float zx_h = 0.0, zx_l = 0.0;
-        float zy_h = 0.0, zy_l = 0.0;
+        // For Mandelbrot: z starts at 0, c varies per pixel
+        // For Julia: z starts at pixel position, c is fixed
+        float zx_h, zx_l, zy_h, zy_l;
+        if (uFractalType == 1) {
+            // Julia: z = pixel position, c = juliaC
+            zx_h = c_x_h; zx_l = c_x_l;
+            zy_h = c_y_h; zy_l = c_y_l;
+        } else {
+            // Mandelbrot and others: z = 0, c = pixel position
+            zx_h = 0.0; zx_l = 0.0;
+            zy_h = 0.0; zy_l = 0.0;
+        }
 
         int iter = 0;
         int maxIter = int(uIterations);
-
-        // Julia set constant (fixed c for Julia)
-        vec2 juliaC = vec2(-0.7, 0.27015);
 
         for (int i = 0; i < 2000; i++) {
             if (i >= maxIter) break;
@@ -68,7 +78,7 @@ const fsSource = `
                 ny_h = zxy_h + c_y_h;
                 ny_l = zxy_l + c_y_l;
             } else if (uFractalType == 1) {
-                // Julia: z = z^2 + juliaC (c is fixed, viewport controlled by c param)
+                // Julia: z = z^2 + juliaC (z starts at pixel, c is fixed)
                 nx_h = zx2_h - zy2_h + juliaC.x;
                 nx_l = zx2_l - zy2_l;
                 ny_h = zxy_h + juliaC.y;
@@ -210,7 +220,7 @@ let isColorCycling = false;
 let useAutoIterations = true;
 let targetIterations = 100;
 let currentIterations = 100;
-let currentLerpSpeed = 0.05; // Faster lerp for smoother transitions
+let currentLerpSpeed = 0.02; // Smoother transitions (lower = smoother)
 let isIterOscillating = false;
 let iterOscillatePhase = 0;
 let iterOscillateSpeed = 0.5; // radians per second
@@ -298,7 +308,6 @@ function render(timestamp = 0) {
             }
             const zoomInput = document.getElementById('zoom');
             zoomInput.value = String(zoom);
-            document.getElementById('zoom-val').textContent = zoom.toExponential(4);
         }
 
         // Color cycling
@@ -316,8 +325,8 @@ function render(timestamp = 0) {
                 iterOscillateMin + (iterOscillateMax - iterOscillateMin) * 
                 (0.5 + 0.5 * Math.sin(iterOscillatePhase))
             );
-            // Smooth interpolation
-            oscillateSmoothIter += (oscillateTargetIter - oscillateSmoothIter) * 0.1;
+            // Smooth interpolation using transition speed
+            oscillateSmoothIter += (oscillateTargetIter - oscillateSmoothIter) * currentLerpSpeed;
             const roundedIter = Math.round(oscillateSmoothIter);
             const iterInput = document.getElementById('iterations');
             iterInput.value = String(roundedIter);
@@ -347,36 +356,39 @@ function render(timestamp = 0) {
 // UI Event Listeners
 document.getElementById('zoom').addEventListener('input', (e) => {
     zoom = parseFloat(e.target.value);
-    document.getElementById('zoom-val').textContent = zoom.toExponential(4);
 });
 
 document.getElementById('zoom-speed').addEventListener('input', (e) => {
     document.getElementById('zoom-speed-val').textContent = parseFloat(e.target.value).toFixed(3);
 });
 
-document.getElementById('fractal-type').addEventListener('change', (e) => {
-    const types = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Sinusoidal'];
-    document.getElementById('fractal-val').textContent = types[parseInt(e.target.value)];
-});
-
 document.getElementById('toggle-zoom').addEventListener('click', (e) => {
     isAutoZooming = !isAutoZooming;
-    e.target.textContent = isAutoZooming ? 'Auto Zoom: On' : 'Auto Zoom: Off';
+    e.target.textContent = isAutoZooming ? 'On' : 'Off';
+    e.target.classList.toggle('active', isAutoZooming);
 });
 
 document.getElementById('toggle-auto-iter').addEventListener('click', (e) => {
     useAutoIterations = !useAutoIterations;
-    e.target.textContent = `Auto Iterations: ${useAutoIterations ? 'On' : 'Off'}`;
+    e.target.textContent = useAutoIterations ? 'On' : 'Off';
+    e.target.classList.toggle('active', useAutoIterations);
 });
 
 document.getElementById('toggle-color-cycle').addEventListener('click', (e) => {
     isColorCycling = !isColorCycling;
-    e.target.textContent = `Color Cycle: ${isColorCycling ? 'On' : 'Off'}`;
+    e.target.textContent = isColorCycling ? 'On' : 'Off';
+    e.target.classList.toggle('active', isColorCycling);
 });
 
 document.getElementById('toggle-iter-osc').addEventListener('click', (e) => {
     isIterOscillating = !isIterOscillating;
-    e.target.textContent = `Iteration Oscillate: ${isIterOscillating ? 'On' : 'Off'}`;
+    e.target.textContent = isIterOscillating ? 'On' : 'Off';
+    e.target.classList.toggle('active', isIterOscillating);
+    // Show/hide oscillation controls
+    const oscControls = document.querySelectorAll('.osc-control');
+    oscControls.forEach(ctrl => {
+        ctrl.style.display = isIterOscillating ? 'block' : 'none';
+    });
 });
 
 document.getElementById('osc-min').addEventListener('input', (e) => {
@@ -399,7 +411,6 @@ document.getElementById('reset-view').addEventListener('click', () => {
     offset = { x: -0.743643887037158, y: 0.131825904205311 };
     const zoomInput = document.getElementById('zoom');
     zoomInput.value = String(zoom);
-    document.getElementById('zoom-val').textContent = zoom.toExponential(4);
 });
 
 
@@ -505,7 +516,6 @@ canvas.addEventListener('touchmove', (e) => {
             lastTouchCenter = center;
 
             document.getElementById('zoom').value = String(zoom);
-            document.getElementById('zoom-val').textContent = zoom.toExponential(4);
         }
     }
 }, { passive: false });
@@ -547,6 +557,30 @@ toggleBtn.addEventListener('click', (e) => {
 
 uiHeader.addEventListener('click', toggleUI);
 
+// Section collapse/expand
+document.querySelectorAll('.section-header').forEach(header => {
+    header.addEventListener('click', (e) => {
+        if (e.target.classList.contains('section-toggle')) {
+            const sectionId = header.dataset.section;
+            const section = header.parentElement;
+            const content = document.getElementById(`section-${sectionId}`);
+            section.classList.toggle('collapsed');
+            header.classList.toggle('collapsed');
+        }
+    });
+});
+
+// Set initial state for oscillation controls
+document.querySelectorAll('.osc-control').forEach(ctrl => {
+    ctrl.style.display = 'none';
+});
+
+// Set initial active states for toggle buttons
+document.getElementById('toggle-zoom').classList.toggle('active', isAutoZooming);
+document.getElementById('toggle-auto-iter').classList.toggle('active', useAutoIterations);
+document.getElementById('toggle-color-cycle').classList.toggle('active', isColorCycling);
+document.getElementById('toggle-iter-osc').classList.toggle('active', isIterOscillating);
+
 // Press H to toggle UI
 document.addEventListener('keydown', (e) => {
     if (e.key === 'h' || e.key === 'H') {
@@ -560,9 +594,10 @@ canvas.addEventListener('wheel', (e) => {
     const zoomFactor = 1.05;
     const direction = e.deltaY > 0 ? zoomFactor : 1 / zoomFactor;
 
-    // Zoom toward mouse position (screen coordinates)
-    const mouseX = e.clientX / canvas.width;
-    const mouseY = e.clientY / canvas.height;
+    // Zoom toward mouse position (canvas-relative coordinates)
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = (e.clientX - rect.left) / rect.width;
+    const mouseY = (e.clientY - rect.top) / rect.height;
 
     const aspect = canvas.width / canvas.height;
     const screenX = (mouseX - 0.5) * aspect;
@@ -577,11 +612,9 @@ canvas.addEventListener('wheel', (e) => {
     offset.y = worldY - screenY * zoom;
 
     document.getElementById('zoom').value = String(zoom);
-    document.getElementById('zoom-val').textContent = zoom.toExponential(4);
 }, { passive: false });
 
 document.getElementById('zoom').value = String(zoom);
-document.getElementById('zoom-val').textContent = zoom.toExponential(4);
 
 window.addEventListener('resize', () => resizeCanvasToDisplaySize(canvas));
 resizeCanvasToDisplaySize(canvas);

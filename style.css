@@ -95,7 +95,7 @@ html, body {
 }
 
 #ui-controls {
-    padding: 15px 20px;
+    padding: 10px 15px;
     overflow-y: auto;
     flex: 1;
 }
@@ -117,10 +117,67 @@ html, body {
     background: rgba(255, 255, 255, 0.3);
 }
 
+/* Sections */
+.section {
+    margin-bottom: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    overflow: hidden;
+}
 
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    user-select: none;
+}
 
+.section-header span {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #e0e0e0;
+}
+
+.section-toggle {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, transform 0.2s;
+}
+
+.section-toggle:hover {
+    color: #aaa;
+}
+
+.section-header.collapsed .section-toggle {
+    transform: rotate(-90deg);
+}
+
+.section-content {
+    padding: 10px 12px;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.section.collapsed .section-content {
+    max-height: 0;
+    padding: 0 12px;
+    overflow: hidden;
+}
+
+/* Controls */
 .control {
-    margin-bottom: 18px;
+    margin-bottom: 14px;
 }
 
 .control:last-child {
@@ -131,15 +188,15 @@ html, body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
-    font-size: 0.9rem;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
     color: #ccc;
 }
 
 .control label span {
     color: #fff;
     font-family: monospace;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
 }
 
 input[type="range"], select {
@@ -151,14 +208,35 @@ input[type="range"], select {
     color: white;
     padding: 6px;
     border-radius: 4px;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
 }
 
-input[type="checkbox"] {
+/* Toggle buttons (compact) */
+.toggle-btn {
+    width: auto;
+    padding: 4px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    border-radius: 12px;
     cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.75rem;
+    font-weight: 500;
+    align-self: center;
 }
 
-button {
+.toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.toggle-btn.active {
+    background: rgba(74, 158, 255, 0.3);
+    border-color: rgba(74, 158, 255, 0.6);
+}
+
+/* Full width buttons */
+.btn-full {
     width: 100%;
     padding: 8px;
     background: rgba(255, 255, 255, 0.1);
@@ -167,14 +245,14 @@ button {
     border-radius: 4px;
     cursor: pointer;
     transition: background 0.2s;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
 }
 
-button:hover {
+.btn-full:hover {
     background: rgba(255, 255, 255, 0.2);
 }
 
-button:active {
+.btn-full:active {
     background: rgba(255, 255, 255, 0.3);
 }
 

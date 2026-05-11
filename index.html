@@ -13,76 +13,116 @@
             <button id="toggle-ui">◀</button>
         </div>
         <div id="ui-controls">
-        <div class="control">
-            <label>Fractal Type: <span id="fractal-val">Mandelbrot</span></label>
-            <select id="fractal-type">
-                <option value="0">Mandelbrot</option>
-                <option value="1">Julia</option>
-                <option value="2">Burning Ship</option>
-                <option value="3">Tricorn</option>
-                <option value="4">Sinusoidal</option>
-            </select>
-        </div>
+            <!-- Fractal Type Section -->
+            <div class="section">
+                <div class="section-header" data-section="fractal">
+                    <span>🧮 Fractal</span>
+                    <button class="section-toggle">▼</button>
+                </div>
+                <div class="section-content" id="section-fractal">
+                    <div class="control">
+                        <label>Type</label>
+                        <select id="fractal-type">
+                            <option value="0">Mandelbrot</option>
+                            <option value="1">Julia</option>
+                            <option value="2">Burning Ship</option>
+                            <option value="3">Tricorn</option>
+                            <option value="4">Sinusoidal</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
 
-        <div class="control">
-            <label>Zoom: <span id="zoom-val">3.0000</span></label>
-            <input type="range" id="zoom" min="0.000000000000000000000000000001" max="3" step="0.000000000000000000000000000001" value="3">
-        </div >
+            <!-- Navigation Section -->
+            <div class="section">
+                <div class="section-header" data-section="nav">
+                    <span>🔍 Navigation</span>
+                    <button class="section-toggle">▼</button>
+                </div>
+                <div class="section-content" id="section-nav">
+                    <div class="control">
+                        <label>Zoom</label>
+                        <input type="range" id="zoom" min="0.000000000000000000000000000001" max="3" step="0.000000000000000000000000000001" value="3">
+                    </div>
+                    <div class="control">
+                        <label>Auto Zoom</label>
+                        <button id="toggle-zoom" class="toggle-btn">Off</button>
+                    </div>
+                    <div class="control">
+                        <label>Zoom Speed <span id="zoom-speed-val">0.01</span></label>
+                        <input type="range" id="zoom-speed" min="0.001" max="0.05" step="0.001" value="0.01">
+                    </div>
+                    <div class="control">
+                        <button id="reset-view" class="btn-full">Reset View</button>
+                    </div>
+                </div>
+            </div>
 
-        <div class="control">
-            <label>Zoom Speed: <span id="zoom-speed-val">0.01</span></label>
-            <input type="range" id="zoom-speed" min="0.001" max="0.05" step="0.001" value="0.01">
-        </div >
+            <!-- Appearance Section -->
+            <div class="section">
+                <div class="section-header" data-section="appearance">
+                    <span>🎨 Appearance</span>
+                    <button class="section-toggle">▼</button>
+                </div>
+                <div class="section-content" id="section-appearance">
+                    <div class="control">
+                        <label>Color Cycle</label>
+                        <button id="toggle-color-cycle" class="toggle-btn">Off</button>
+                    </div>
+                    <div class="control">
+                        <label>Color Shift <span id="color-shift-val">0.0</span></label>
+                        <input type="range" id="color-shift" min="0" max="1" step="0.01" value="0">
+                    </div>
+                </div>
+            </div>
 
-        <div class="control">
-            <label>Iteration Lerp: <span id="iter-lerp-val">0.05</span></label>
-            <input type="range" id="iter-lerp" min="0.001" max="0.2" step="0.001" value="0.05">
-        </div >
+            <!-- Iterations Section -->
+            <div class="section">
+                <div class="section-header" data-section="iterations">
+                    <span>⚙️ Iterations</span>
+                    <button class="section-toggle">▼</button>
+                </div>
+                <div class="section-content" id="section-iterations">
+                    <div class="control">
+                        <label>Auto Iterations</label>
+                        <button id="toggle-auto-iter" class="toggle-btn">On</button>
+                    </div>
+                    <div class="control">
+                        <label>Manual <span id="iterations-val">100</span></label>
+                        <input type="range" id="iterations" min="10" max="2000" step="10" value="100">
+                    </div>
+                    <div class="control">
+                        <label>Oscillate</label>
+                        <button id="toggle-iter-osc" class="toggle-btn">Off</button>
+                    </div>
+                    <div class="control osc-control" style="display: none;">
+                        <label>Min <span id="osc-min-val">50</span></label>
+                        <input type="range" id="osc-min" min="10" max="500" step="10" value="50">
+                    </div>
+                    <div class="control osc-control" style="display: none;">
+                        <label>Max <span id="osc-max-val">1000</span></label>
+                        <input type="range" id="osc-max" min="500" max="2000" step="10" value="1000">
+                    </div>
+                    <div class="control osc-control" style="display: none;">
+                        <label>Speed <span id="osc-speed-val">0.5</span></label>
+                        <input type="range" id="osc-speed" min="0.1" max="2" step="0.1" value="0.5">
+                    </div>
+                </div>
+            </div>
 
-        <div class="control">
-            <button id="toggle-zoom">Auto Zoom: Off</button>
-        </div >
-
-        <div class="control">
-            <button id="reset-view">Reset View</button>
-        </div >
-
-        <div class="control">
-            <label>Iterations: <span id="iterations-val">100</span></label>
-            <input type="range" id="iterations" min="10" max="2000" step="10" value="100">
-        </div >
-
-        <div class="control">
-            <button id="toggle-auto-iter">Auto Iterations: On</button>
-        </div >
-
-        <div class="control">
-            <button id="toggle-color-cycle">Color Cycle: Off</button>
-        </div >
-
-        <div class="control">
-            <button id="toggle-iter-osc">Iteration Oscillate: Off</button>
-        </div >
-
-        <div class="control">
-            <label>Oscillate Min: <span id="osc-min-val">50</span></label>
-            <input type="range" id="osc-min" min="10" max="500" step="10" value="50">
-        </div >
-
-        <div class="control">
-            <label>Oscillate Max: <span id="osc-max-val">1000</span></label>
-            <input type="range" id="osc-max" min="500" max="2000" step="10" value="1000">
-        </div >
-
-        <div class="control">
-            <label>Oscillate Speed: <span id="osc-speed-val">0.5</span></label>
-            <input type="range" id="osc-speed" min="0.1" max="2" step="0.1" value="0.5">
-        </div >
-
-        <div class="control">
-            <label>Color Shift: <span id="color-shift-val">0.0</span></label>
-            <input type="range" id="color-shift" min="0" max="1" step="0.01" value="0">
-        </div >
+            <!-- Settings Section -->
+            <div class="section">
+                <div class="section-header" data-section="settings">
+                    <span>🐢 Settings</span>
+                    <button class="section-toggle">▼</button>
+                </div>
+                <div class="section-content" id="section-settings">
+                    <div class="control">
+                        <label>Transition Speed <span id="iter-lerp-val">0.02</span></label>
+                        <input type="range" id="iter-lerp" min="0.001" max="0.2" step="0.001" value="0.02">
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
