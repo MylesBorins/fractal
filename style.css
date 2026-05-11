@@ -6,36 +6,176 @@ html, body {
     overflow: hidden;
     background-color: #000;
     color: #fff;
-    font-family: sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 #ui {
     position: fixed;
-    top: 20px;
-    left: 20px;
-    background: rgba(0, 0, 0, 0.7);
-    padding: 20px;
-    border-radius: 8px;
+    top: 0;
+    left: 0;
+    width: 320px;
+    height: 100vh;
+    background: rgba(20, 20, 20, 0.9);
+    backdrop-filter: blur(10px);
     z-index: 100;
     pointer-events: auto;
+    box-shadow: 4px 0 32px rgba(0, 0, 0, 0.5);
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    transition: width 0.3s ease;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    button {
+        width: auto;
+    }
 }
 
-h1 {
-    margin-top: 0;
-    font-size: 1.5rem;
+.ui-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px 20px;
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.4);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    gap: 10px;
+    white-space: nowrap;
+    box-sizing: border-box;
+    flex-shrink: 0;
 }
+
+.ui-title {
+    font-size: 1.1rem;
+    font-weight: 300;
+    letter-spacing: 1px;
+    cursor: pointer;
+}
+
+#toggle-ui {
+    position: static;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+#toggle-ui:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+#ui.collapsed {
+    width: 50px;
+}
+
+#ui.collapsed .ui-title {
+    display: none;
+}
+
+#ui.collapsed .ui-header {
+    padding: 15px 12px;
+    justify-content: center;
+}
+
+#ui.collapsed #toggle-ui {
+    padding: 8px;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#ui.collapsed #ui-controls {
+    display: none;
+}
+
+#ui-controls {
+    padding: 15px 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+#ui-controls::-webkit-scrollbar {
+    width: 6px;
+}
+
+#ui-controls::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+#ui-controls::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+#ui-controls::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+
 
 .control {
-    margin-bottom: 15px;
+    margin-bottom: 18px;
+}
+
+.control:last-child {
+    margin-bottom: 0;
 }
 
 .control label {
-    display: block;
-    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    color: #ccc;
 }
 
-input[type="range"] {
+.control label span {
+    color: #fff;
+    font-family: monospace;
+    font-size: 0.85rem;
+}
+
+input[type="range"], select {
     width: 100%;
+    cursor: pointer;
+    accent-color: #4a9eff;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    padding: 6px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+input[type="checkbox"] {
+    cursor: pointer;
+}
+
+button {
+    width: 100%;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-size: 0.9rem;
+}
+
+button:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+button:active {
+    background: rgba(255, 255, 255, 0.3);
 }
 
 canvas {
@@ -46,4 +186,8 @@ canvas {
     width: 100%;
     height: 100%;
     z-index: 0;
+}
+
+#ui.hidden {
+    display: none !important;
 }
