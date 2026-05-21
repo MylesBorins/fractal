@@ -2,6 +2,14 @@
 
 A WebGL-powered fractal visualization tool with Double-Single (DS) precision arithmetic for deep zooming.
 
+## Built With
+
+This project was developed entirely using local LLM tooling:
+
+- **Athanor** ([github.com/MylesBorins/athanor](https://github.com/MylesBorins/athanor)) - Local LLM management
+- **Pi Agent** ([pi.dev](https://pi.dev/)) - Agent Harness
+- **Qwen3.5-27B** ([unsloth on HuggingFace](https://huggingface.co/unsloth/Qwen3.5-27B)) - Primary model
+
 ## Features
 
 - **Multiple Fractal Types**
@@ -30,13 +38,15 @@ A WebGL-powered fractal visualization tool with Double-Single (DS) precision ari
 ## Project Structure
 
 ```
-├── index.html      # Main HTML with UI controls
-├── main.js         # WebGL rendering and interaction logic
-├── style.css       # UI styling
-├── agents.md       # Agent specifications and workflows
-├── README.md       # This file
-└── plans/          # Task tracking and implementation plans
-    ├── tasks.md           # Current tasks and known issues
+├── .github/workflows/  # GitHub Actions for Pages deployment
+├── index.html          # Main HTML with UI controls
+├── main.js             # WebGL rendering and interaction logic
+├── style.css           # UI styling
+├── LICENSE             # MIT License
+├── README.md           # This file
+├── agents.md           # Agent specifications and workflows
+└── plans/              # Task tracking and implementation plans
+    ├── tasks.md           # Implementation history
     └── zoom_fix_plan.md   # DS precision implementation plan
 ```
 
@@ -56,13 +66,17 @@ Open `index.html` in a modern web browser with WebGL support.
 | Color Cycle | Enable automatic color shifting |
 | Iteration Oscillate | Smoothly oscillate iteration count |
 
-## Known Issues
+## Status
 
-See [`plans/tasks.md`](./plans/tasks.md) for current issues:
+All major features are complete and working:
 
-1. **Julia Set** - Appears as solid color; viewport control needs verification
-2. **Burning Ship** - Rendering issues with absolute value operations
-3. **Tricorn** - Appears stretched; aspect ratio calculation may need adjustment
+- ✅ All 5 fractal types render correctly
+- ✅ Double-Single precision deep zooming (10⁻³⁰)
+- ✅ Anti-aliasing with 1×/2×/4× supersampling
+- ✅ Smooth UI with collapsible side panel
+- ✅ Real-time zoom, pan, and animation controls
+
+See [`plans/tasks.md`](./plans/tasks.md) for implementation history.
 
 ## Development
 

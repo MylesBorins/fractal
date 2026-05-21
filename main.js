@@ -80,9 +80,9 @@ const fsSource = `
             } else if (uFractalType == 1) {
                 // Julia: z = z^2 + juliaC (z starts at pixel, c is fixed)
                 nx_h = zx2_h - zy2_h + juliaC.x;
-                nx_l = zx2_l - zy2_l;
+                nx_l = zx2_l - zy2_l + juliaC.x; // Add low component of juliaC
                 ny_h = zxy_h + juliaC.y;
-                ny_l = zxy_l;
+                ny_l = zxy_l + juliaC.y; // Add low component of juliaC
             } else if (uFractalType == 2) {
                 // Burning Ship: z = (|Re(z)| + i|Im(z)|)^2 + c
                 float ax = abs(zx_h);
@@ -244,9 +244,6 @@ function resizeCanvasToDisplaySize(canvas) {
 }
 
 function drawScene(gl, programInfo, buffers) {
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
 
     gl.useProgram(programInfo.program);
     gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
@@ -411,6 +408,20 @@ document.getElementById('reset-view').addEventListener('click', () => {
     offset = { x: -0.743643887037158, y: 0.131825904205311 };
     const zoomInput = document.getElementById('zoom');
     zoomInput.value = String(zoom);
+});
+
+// Supersampling control
+// Preset loading
+document.getElementById('preset-select').addEventListener('change', (e) => {
+    const option = e.target.options[e.target.selectedIndex];
+    if (option.value && option.dataset.x) {
+        offset.x = parseFloat(option.dataset.x);
+        offset.y = parseFloat(option.dataset.y);
+        zoom = parseFloat(option.dataset.z);
+        document.getElementById('zoom').value = String(zoom);
+        // Reset to Mandelbrot for presets (most are Mandelbrot coordinates)
+        document.getElementById('fractal-type').value = '0';
+    }
 });
 
 
