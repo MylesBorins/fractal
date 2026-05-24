@@ -21,7 +21,7 @@ html, body {
     pointer-events: auto;
     box-shadow: 4px 0 32px rgba(0, 0, 0, 0.5);
     border-right: 1px solid rgba(255, 255, 255, 0.1);
-    transition: width 0.3s ease;
+    transition: transform 0.3s ease, width 0.3s ease;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -42,6 +42,7 @@ html, body {
     white-space: nowrap;
     box-sizing: border-box;
     flex-shrink: 0;
+    position: relative;
 }
 
 .ui-title {
@@ -49,6 +50,22 @@ html, body {
     font-weight: 300;
     letter-spacing: 1px;
     cursor: pointer;
+}
+
+.github-link {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    transition: opacity 0.2s;
+}
+
+.github-link:hover {
+    opacity: 0.7;
+}
+
+.github-link img {
+    filter: brightness(0) invert(1);
+    opacity: 0.6;
 }
 
 #toggle-ui {
@@ -73,6 +90,10 @@ html, body {
 }
 
 #ui.collapsed .ui-title {
+    display: none;
+}
+
+#ui.collapsed .github-link {
     display: none;
 }
 
@@ -115,6 +136,177 @@ html, body {
 
 #ui-controls::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.3);
+}
+
+/* Mobile: bottom sheet */
+@media (max-width: 600px) {
+    #ui {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: 70vh;
+        max-height: 500px;
+        border-right: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px 16px 0 0;
+        box-shadow: 0 -4px 32px rgba(0, 0, 0, 0.6);
+        transform: translateY(100%);
+    }
+
+    #ui.mobile-visible {
+        transform: translateY(0);
+    }
+
+    #ui.collapsed {
+        width: 100%;
+        transform: translateY(100%);
+    }
+
+    /* hide the collapsed toggle strip entirely on mobile */
+    #ui.collapsed .ui-header {
+        padding: 0;
+        border-bottom: none;
+    }
+
+    #ui.collapsed #toggle-ui {
+        display: none;
+    }
+
+    #ui.collapsed .github-link {
+        display: none;
+    }
+
+    .ui-header {
+        cursor: grab;
+        padding: 12px 20px 12px 16px;
+    }
+
+    .github-link {
+        margin-left: auto;
+        flex-shrink: 0;
+        padding-right: 4px;
+    }
+
+    .ui-header:active {
+        cursor: grabbing;
+    }
+
+    .ui-header::before {
+        content: '';
+        display: block;
+        position: absolute;
+        top: 6px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 36px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.3);
+        border-radius: 2px;
+        pointer-events: none;
+    }
+
+    .ui-title {
+        font-size: 1rem;
+    }
+
+    #toggle-ui {
+        padding: 8px 14px;
+        font-size: 0.9rem;
+        border-radius: 8px;
+    }
+
+    #ui-controls {
+        padding: 12px 16px;
+    }
+
+    .section {
+        margin-bottom: 10px;
+    }
+
+    .section-header {
+        padding: 12px 14px;
+    }
+
+    .section-header span {
+        font-size: 0.9rem;
+    }
+
+    .section-content {
+        padding: 12px 14px;
+    }
+
+    .control {
+        margin-bottom: 16px;
+    }
+
+    .control label {
+        font-size: 0.9rem;
+        margin-bottom: 8px;
+    }
+
+    input[type="range"] {
+        height: 36px;
+        padding: 8px 6px;
+    }
+
+    select {
+        padding: 10px;
+        font-size: 0.95rem;
+        border-radius: 8px;
+    }
+
+    .toggle-btn {
+        padding: 8px 18px;
+        font-size: 0.85rem;
+        border-radius: 16px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-full {
+        padding: 12px;
+        font-size: 0.95rem;
+        border-radius: 8px;
+        min-height: 44px;
+    }
+
+}
+
+/* Mobile FAB toggle — visible only on mobile when panel is collapsed */
+#mobile-toggle-fab {
+    display: none;
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 98;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(20, 20, 20, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 1.3rem;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+@media (max-width: 600px) {
+    body.mobile-panel-collapsed #mobile-toggle-fab {
+        display: flex;
+    }
+}
+
+/* Prevent unwanted touch gestures on canvas */
+canvas {
+    touch-action: none;
 }
 
 /* Sections */
@@ -268,4 +460,27 @@ canvas {
 
 #ui.hidden {
     display: none !important;
+}
+
+/* Overlay dimming for mobile */
+#ui-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+@media (max-width: 600px) {
+    #ui-overlay.visible {
+        display: block;
+        opacity: 1;
+        pointer-events: auto;
+    }
 }

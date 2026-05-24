@@ -12,12 +12,6 @@
 - Added smooth interpolation between target values
 - Much smoother animation now
 
-### ✅ Supersampling / Anti-Aliasing
-- Added 1×/2×/4× supersampling selector in Quality section
-- Renders to offscreen framebuffer at higher resolution
-- WebGL texture filtering automatically downsamples for smooth anti-aliasing
-- Fixes pixelation at deep zooms
-
 ## Current Issues
 
 ### 1. Julia Set - ✅ FIXED

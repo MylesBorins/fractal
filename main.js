@@ -47,9 +47,9 @@ const fsSource = `
         // For Julia: z starts at pixel position, c is fixed
         float zx_h, zx_l, zy_h, zy_l;
         if (uFractalType == 1) {
-            // Julia: z = pixel position, c = juliaC
-            zx_h = c_x_h; zx_l = c_x_l;
-            zy_h = c_y_h; zy_l = c_y_l;
+            // Julia: z = pixel position, c = juliaC (fixed)
+            zx_h = fx; zx_l = 0.0;
+            zy_h = fy; zy_l = 0.0;
         } else {
             // Mandelbrot and others: z = 0, c = pixel position
             zx_h = 0.0; zx_l = 0.0;
@@ -80,9 +80,9 @@ const fsSource = `
             } else if (uFractalType == 1) {
                 // Julia: z = z^2 + juliaC (z starts at pixel, c is fixed)
                 nx_h = zx2_h - zy2_h + juliaC.x;
-                nx_l = zx2_l - zy2_l + juliaC.x; // Add low component of juliaC
+                nx_l = zx2_l - zy2_l; // juliaC is constant, no low component needed
                 ny_h = zxy_h + juliaC.y;
-                ny_l = zxy_l + juliaC.y; // Add low component of juliaC
+                ny_l = zxy_l;
             } else if (uFractalType == 2) {
                 // Burning Ship: z = (|Re(z)| + i|Im(z)|)^2 + c
                 float ax = abs(zx_h);
@@ -410,7 +410,6 @@ document.getElementById('reset-view').addEventListener('click', () => {
     zoomInput.value = String(zoom);
 });
 
-// Supersampling control
 // Preset loading
 document.getElementById('preset-select').addEventListener('change', (e) => {
     const option = e.target.options[e.target.selectedIndex];
@@ -554,11 +553,36 @@ let uiCollapsed = false;
 const ui = document.getElementById('ui');
 const toggleBtn = document.getElementById('toggle-ui');
 const uiHeader = document.getElementById('ui-header');
+const uiOverlay = document.getElementById('ui-overlay');
+const mobileFab = document.getElementById('mobile-toggle-fab');
+
+function isMobile() {
+    return window.innerWidth <= 600;
+}
+
+// On mobile, start collapsed (panel hidden)
+if (isMobile()) {
+    uiCollapsed = true;
+    ui.classList.add('collapsed');
+    document.body.classList.add('mobile-panel-collapsed');
+}
 
 function toggleUI() {
     uiCollapsed = !uiCollapsed;
-    ui.classList.toggle('collapsed', uiCollapsed);
-    toggleBtn.textContent = uiCollapsed ? '▶' : '◀';
+
+    if (isMobile()) {
+        ui.classList.toggle('collapsed', uiCollapsed);
+        ui.classList.toggle('mobile-visible', !uiCollapsed);
+        uiOverlay.classList.toggle('visible', !uiCollapsed);
+        document.body.classList.toggle('mobile-panel-collapsed', uiCollapsed);
+        toggleBtn.textContent = uiCollapsed ? '▶' : '▼';
+    } else {
+        ui.classList.toggle('collapsed', uiCollapsed);
+        uiOverlay.classList.remove('visible');
+        ui.classList.remove('mobile-visible');
+        document.body.classList.remove('mobile-panel-collapsed');
+        toggleBtn.textContent = uiCollapsed ? '▶' : '◀';
+    }
 }
 
 toggleBtn.addEventListener('click', (e) => {
@@ -567,6 +591,27 @@ toggleBtn.addEventListener('click', (e) => {
 });
 
 uiHeader.addEventListener('click', toggleUI);
+
+// FAB toggle for mobile when panel is hidden
+mobileFab.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleUI();
+});
+
+// Close panel when tapping overlay on mobile
+uiOverlay.addEventListener('click', () => {
+    if (!uiCollapsed) {
+        toggleUI();
+    }
+});
+
+// Handle resize: clean up mobile classes when switching to desktop
+window.addEventListener('resize', () => {
+    if (!isMobile()) {
+        ui.classList.remove('mobile-visible');
+        uiOverlay.classList.remove('visible');
+    }
+});
 
 // Section collapse/expand
 document.querySelectorAll('.section-header').forEach(header => {

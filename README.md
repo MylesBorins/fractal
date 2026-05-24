@@ -72,7 +72,6 @@ All major features are complete and working:
 
 - ✅ All 5 fractal types render correctly
 - ✅ Double-Single precision deep zooming (10⁻³⁰)
-- ✅ Anti-aliasing with 1×/2×/4× supersampling
 - ✅ Smooth UI with collapsible side panel
 - ✅ Real-time zoom, pan, and animation controls
 
