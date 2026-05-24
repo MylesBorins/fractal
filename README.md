@@ -70,7 +70,7 @@ Open `index.html` in a modern web browser with WebGL support.
 
 All major features are complete and working:
 
-- ✅ All 5 fractal types render correctly
+- ✅ All 5 fractal types render correctly (Mandelbrot, Julia, Burning Ship, Tricorn, Sinusoidal)
 - ✅ Double-Single precision deep zooming (10⁻³⁰)
 - ✅ Smooth UI with collapsible side panel
 - ✅ Real-time zoom, pan, and animation controls

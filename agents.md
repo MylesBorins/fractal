@@ -22,12 +22,6 @@ The [`plans/`](./plans/) directory contains the source of truth for work items:
 - **`tasks.md`** - Current issues and completed items
 - **`zoom_fix_plan.md`** - DS precision implementation phases
 
-## Current Known Issues
-
-1. **Julia Set** - Appears as solid color; viewport/offset control not working correctly
-2. **Burning Ship** - "Borning" rendering issues; DS math breaking with `abs()` operations
-3. **Tricorn** - Stretched/distorted appearance; aspect ratio calculation issue
-
 ## Technical Context
 
 ### Double-Single Precision
