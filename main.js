@@ -653,7 +653,7 @@ canvas.addEventListener('wheel', (e) => {
     // Zoom toward mouse position (canvas-relative coordinates)
     const rect = canvas.getBoundingClientRect();
     const mouseX = (e.clientX - rect.left) / rect.width;
-    const mouseY = (e.clientY - rect.top) / rect.height;
+    const mouseY = 1.0 - (e.clientY - rect.top) / rect.height;
 
     const aspect = canvas.width / canvas.height;
     const screenX = (mouseX - 0.5) * aspect;
