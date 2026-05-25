@@ -506,9 +506,10 @@ canvas.addEventListener('touchmove', (e) => {
             const scale = distance / lastTouchDistance;
             const targetZoom = zoom / scale;
 
-            // Adjust offset to zoom toward center (screen coordinates)
-            const centerX = center.x / canvas.width;
-            const centerY = center.y / canvas.height;
+            // Adjust offset to zoom toward pinch center (canvas-relative coordinates)
+            const rect = canvas.getBoundingClientRect();
+            const centerX = (center.x - rect.left) / rect.width;
+            const centerY = 1.0 - (center.y - rect.top) / rect.height;
 
             const aspect = canvas.width / canvas.height;
             const screenX = (centerX - 0.5) * aspect;
