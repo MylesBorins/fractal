@@ -44,12 +44,14 @@ const fsSource = `
 
         // z in DS: z = (z_h + z_l)
         // For Mandelbrot: z starts at 0, c varies per pixel
-        // For Julia: z starts at pixel position, c is fixed
+        // For Julia: z starts at pixel position (with zoom/offset), c is fixed
         float zx_h, zx_l, zy_h, zy_l;
         if (uFractalType == 1) {
-            // Julia: z = pixel position, c = juliaC (fixed)
-            zx_h = fx; zx_l = 0.0;
-            zy_h = fy; zy_l = 0.0;
+            // Julia: z = zoomed pixel position, c = juliaC (fixed)
+            zx_h = uOffsetHi.x + fx * uZoomHi;
+            zx_l = uOffsetLo.x + fx * uZoomLo;
+            zy_h = uOffsetHi.y + fy * uZoomHi;
+            zy_l = uOffsetLo.y + fy * uZoomLo;
         } else {
             // Mandelbrot and others: z = 0, c = pixel position
             zx_h = 0.0; zx_l = 0.0;
@@ -85,14 +87,21 @@ const fsSource = `
                 ny_l = zxy_l;
             } else if (uFractalType == 2) {
                 // Burning Ship: z = (|Re(z)| + i|Im(z)|)^2 + c
-                float ax = abs(zx_h);
-                float ay = abs(zy_h);
-                float ax2 = ax * ax;
-                float ay2 = ay * ay;
-                nx_h = ax2 - ay2 + c_x_h;
-                ny_h = -2.0 * ax * ay + c_y_h;
-                nx_l = c_x_l;
-                ny_l = c_y_l;
+                // DS representation: w = w_h + w_l where w = |z|
+                float ax_h = abs(zx_h);
+                float ax_l = (zx_h >= 0.0) ? zx_l : -zx_l;
+                float ay_h = abs(zy_h);
+                float ay_l = (zy_h >= 0.0) ? zy_l : -zy_l;
+                // w² = w_h² + 2*w_h*w_l (DS squaring)
+                float ax2_h = ax_h * ax_h;
+                float ax2_l = 2.0 * ax_h * ax_l;
+                float ay2_h = ay_h * ay_h;
+                float ay2_l = 2.0 * ay_h * ay_l;
+                // (ax + i*ay)² = (ax² - ay²) + 2i*ax*ay
+                nx_h = ax2_h - ay2_h + c_x_h;
+                nx_l = ax2_l - ay2_l + c_x_l;
+                ny_h = 2.0 * ax_h * ay_h + c_y_h;
+                ny_l = 2.0 * (ax_h * ay_l + ax_l * ay_h) + c_y_l;
             } else if (uFractalType == 3) {
                 // Tricorn/Mandelbar: z = conjugate(z)^2 + c
                 nx_h = zx2_h - zy2_h + c_x_h;

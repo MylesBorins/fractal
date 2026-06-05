@@ -27,3 +27,8 @@
 - Tricorn renders correctly with full DS propagation for conjugate(z)²
 - Real part: x² - y², Imag part: -2xy — both high and low components computed correctly
 - Aspect ratio calculation is correct (applied uniformly to all fractal types)
+
+### 4. Phase 2 Refinements - ✅ ALL FIXED
+- **Smooth coloring with DS precision** — magnitude uses both hi/lo: `mag2 = dot(zh,zh) + 2*(zh·zl)`
+- **Iteration limit** — shader loop set to 2000 iterations
+- **Deep zoom support** — minZoom set to 1e-30, slider reflects this range
