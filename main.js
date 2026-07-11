@@ -14,7 +14,8 @@ const vsSource = `
     }
 `;
 
-const fsSource = `
+// Mandelbrot/Julia/Tricorn - z^2 + c style (no abs, no transcendental)
+const fsSourceQuad = `
     precision highp float;
 
     uniform vec2 uResolution;
@@ -33,18 +34,10 @@ const fsSource = `
         float fx = (uv.x - 0.5) * aspect;
         float fy = (uv.y - 0.5);
 
-        // Compute c with DS precision
-        float c_x_h = uOffsetHi.x + fx * uZoomHi;
-        float c_x_l = uOffsetLo.x + fx * uZoomLo;
-        float c_y_h = uOffsetHi.y + fy * uZoomHi;
-        float c_y_l = uOffsetLo.y + fy * uZoomLo;
-
         // Julia set constant (fixed c for Julia)
         vec2 juliaC = vec2(-0.7, 0.27015);
 
         // z in DS: z = (z_h + z_l)
-        // For Mandelbrot: z starts at 0, c varies per pixel
-        // For Julia: z starts at pixel position (with zoom/offset), c is fixed
         float zx_h, zx_l, zy_h, zy_l;
         if (uFractalType == 1) {
             // Julia: z = zoomed pixel position, c = juliaC (fixed)
@@ -53,7 +46,7 @@ const fsSource = `
             zy_h = uOffsetHi.y + fy * uZoomHi;
             zy_l = uOffsetLo.y + fy * uZoomLo;
         } else {
-            // Mandelbrot and others: z = 0, c = pixel position
+            // Mandelbrot & Tricorn: z = 0, c = pixel position
             zx_h = 0.0; zx_l = 0.0;
             zy_h = 0.0; zy_l = 0.0;
         }
@@ -64,6 +57,7 @@ const fsSource = `
         for (int i = 0; i < 2000; i++) {
             if (i >= maxIter) break;
 
+            // Common z^2 computation (used by Mandelbrot, Julia, Tricorn)
             float zx2_h = zx_h * zx_h;
             float zx2_l = 2.0 * zx_h * zx_l;
             float zy2_h = zy_h * zy_h;
@@ -71,53 +65,30 @@ const fsSource = `
             float zxy_h = 2.0 * zx_h * zy_h;
             float zxy_l = 2.0 * (zx_h * zy_l + zx_l * zy_h);
 
+            float c_x_h = uOffsetHi.x + fx * uZoomHi;
+            float c_x_l = uOffsetLo.x + fx * uZoomLo;
+            float c_y_h = uOffsetHi.y + fy * uZoomHi;
+            float c_y_l = uOffsetLo.y + fy * uZoomLo;
+
             float nx_h, nx_l, ny_h, ny_l;
 
-            if (uFractalType == 0) {
+            if (uFractalType == 0 || uFractalType == 1) {
                 // Mandelbrot: z = z^2 + c
-                nx_h = zx2_h - zy2_h + c_x_h;
-                nx_l = zx2_l - zy2_l + c_x_l;
-                ny_h = zxy_h + c_y_h;
-                ny_l = zxy_l + c_y_l;
-            } else if (uFractalType == 1) {
-                // Julia: z = z^2 + juliaC (z starts at pixel, c is fixed)
-                nx_h = zx2_h - zy2_h + juliaC.x;
-                nx_l = zx2_l - zy2_l; // juliaC is constant, no low component needed
-                ny_h = zxy_h + juliaC.y;
-                ny_l = zxy_l;
-            } else if (uFractalType == 2) {
-                // Burning Ship: z = (|Re(z)| + i|Im(z)|)^2 + c
-                // DS representation: w = w_h + w_l where w = |z|
-                float ax_h = abs(zx_h);
-                float ax_l = (zx_h >= 0.0) ? zx_l : -zx_l;
-                float ay_h = abs(zy_h);
-                float ay_l = (zy_h >= 0.0) ? zy_l : -zy_l;
-                // w² = w_h² + 2*w_h*w_l (DS squaring)
-                float ax2_h = ax_h * ax_h;
-                float ax2_l = 2.0 * ax_h * ax_l;
-                float ay2_h = ay_h * ay_h;
-                float ay2_l = 2.0 * ay_h * ay_l;
-                // (ax + i*ay)² = (ax² - ay²) + 2i*ax*ay
-                nx_h = ax2_h - ay2_h + c_x_h;
-                nx_l = ax2_l - ay2_l + c_x_l;
-                ny_h = 2.0 * ax_h * ay_h + c_y_h;
-                ny_l = 2.0 * (ax_h * ay_l + ax_l * ay_h) + c_y_l;
-            } else if (uFractalType == 3) {
-                // Tricorn/Mandelbar: z = conjugate(z)^2 + c
+                // Julia: z = z^2 + juliaC
+                float cj_x = (uFractalType == 0) ? c_x_h : juliaC.x;
+                float cj_l_x = (uFractalType == 0) ? c_x_l : 0.0;
+                float cj_y = (uFractalType == 0) ? c_y_h : juliaC.y;
+                float cj_l_y = (uFractalType == 0) ? c_y_l : 0.0;
+                nx_h = zx2_h - zy2_h + cj_x;
+                nx_l = zx2_l - zy2_l + cj_l_x;
+                ny_h = zxy_h + cj_y;
+                ny_l = zxy_l + cj_l_y;
+            } else {
+                // Tricorn: z = conj(z)^2 + c
                 nx_h = zx2_h - zy2_h + c_x_h;
                 ny_h = -zxy_h + c_y_h;
                 nx_l = zx2_l - zy2_l + c_x_l;
                 ny_l = -zxy_l + c_y_l;
-            } else {
-                // Sinusoidal: z = sin(z) + c
-                float exp_zh = exp(zy_h);
-                float exp_mzh = exp(-zy_h);
-                float cosh_zh = 0.5 * (exp_zh + exp_mzh);
-                float sinh_zh = 0.5 * (exp_zh - exp_mzh);
-                nx_h = sin(zx_h) * cosh_zh + c_x_h;
-                ny_h = cos(zx_h) * sinh_zh + c_y_h;
-                nx_l = c_x_l;
-                ny_l = c_y_l;
             }
 
             zx_h = nx_h;
@@ -126,7 +97,7 @@ const fsSource = `
             zy_l = ny_l;
 
             float mag2 = zx_h * zx_h + zy_h * zy_h;
-            if (mag2 > 100.0) break;
+            if (mag2 > 256.0) break;
 
             iter++;
         }
@@ -134,10 +105,151 @@ const fsSource = `
         if (iter == maxIter) {
             gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
         } else {
-            // Smooth coloring
+            // Smooth coloring with DS magnitude
             float mag2 = zx_h * zx_h + zy_h * zy_h + 2.0 * (zx_h * zx_l + zy_h * zy_l);
             float smoothVal = float(iter) + 1.0 - log2(max(mag2, 1e-20));
 
+            float color = smoothVal / uIterations;
+            vec3 col = 0.5 + 0.5 * cos(6.28318 * (vec3(1.0, 0.6, 0.4) * color + uColorShift));
+            gl_FragColor = vec4(col, 1.0);
+        }
+    }
+`;
+
+// Burning Ship - uses abs() in the iteration
+const fsSourceBS = `
+    precision highp float;
+
+    uniform vec2 uResolution;
+    uniform vec2 uOffsetHi;
+    uniform vec2 uOffsetLo;
+    uniform float uZoomHi;
+    uniform float uZoomLo;
+    uniform float uIterations;
+    uniform float uColorShift;
+
+    void main() {
+        vec2 uv = gl_FragCoord.xy / uResolution.xy;
+        float aspect = uResolution.x / uResolution.y;
+
+        float fx = (uv.x - 0.5) * aspect;
+        float fy = (uv.y - 0.5);
+
+        float c_x_h = uOffsetHi.x + fx * uZoomHi;
+        float c_x_l = uOffsetLo.x + fx * uZoomLo;
+        float c_y_h = uOffsetHi.y + fy * uZoomHi;
+        float c_y_l = uOffsetLo.y + fy * uZoomLo;
+
+        // Burning Ship: z = 0, c = pixel position
+        float zx_h = 0.0, zx_l = 0.0;
+        float zy_h = 0.0, zy_l = 0.0;
+
+        int iter = 0;
+        int maxIter = int(uIterations);
+
+        for (int i = 0; i < 2000; i++) {
+            if (i >= maxIter) break;
+
+            // abs(z) with DS precision
+            float ax_h = abs(zx_h);
+            float ax_l = (zx_h >= 0.0) ? zx_l : -zx_l;
+            float ay_h = abs(zy_h);
+            float ay_l = (zy_h >= 0.0) ? zy_l : -zy_l;
+
+            // w² = w_h² + 2*w_h*w_l
+            float ax2_h = ax_h * ax_h;
+            float ax2_l = 2.0 * ax_h * ax_l;
+            float ay2_h = ay_h * ay_h;
+            float ay2_l = 2.0 * ay_h * ay_l;
+
+            // (ax + i*ay)² = (ax² - ay²) + 2i*ax*ay
+            float nx_h = ax2_h - ay2_h + c_x_h;
+            float nx_l = ax2_l - ay2_l + c_x_l;
+            float ny_h = 2.0 * ax_h * ay_h + c_y_h;
+            float ny_l = 2.0 * (ax_h * ay_l + ax_l * ay_h) + c_y_l;
+
+            zx_h = nx_h;
+            zx_l = nx_l;
+            zy_h = ny_h;
+            zy_l = ny_l;
+
+            float mag2 = zx_h * zx_h + zy_h * zy_h;
+            if (mag2 > 256.0) break;
+
+            iter++;
+        }
+
+        if (iter == maxIter) {
+            gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+        } else {
+            float mag2 = zx_h * zx_h + zy_h * zy_h + 2.0 * (zx_h * zx_l + zy_h * zy_l);
+            float smoothVal = float(iter) + 1.0 - log2(max(mag2, 1e-20));
+            float color = smoothVal / uIterations;
+            vec3 col = 0.5 + 0.5 * cos(6.28318 * (vec3(1.0, 0.6, 0.4) * color + uColorShift));
+            gl_FragColor = vec4(col, 1.0);
+        }
+    }
+`;
+
+// Sinusoidal - most expensive, uses exp/sin/cos
+const fsSourceSin = `
+    precision highp float;
+
+    uniform vec2 uResolution;
+    uniform vec2 uOffsetHi;
+    uniform vec2 uOffsetLo;
+    uniform float uZoomHi;
+    uniform float uZoomLo;
+    uniform float uIterations;
+    uniform float uColorShift;
+
+    void main() {
+        vec2 uv = gl_FragCoord.xy / uResolution.xy;
+        float aspect = uResolution.x / uResolution.y;
+
+        float fx = (uv.x - 0.5) * aspect;
+        float fy = (uv.y - 0.5);
+
+        float c_x_h = uOffsetHi.x + fx * uZoomHi;
+        float c_x_l = uOffsetLo.x + fx * uZoomLo;
+        float c_y_h = uOffsetHi.y + fy * uZoomHi;
+        float c_y_l = uOffsetLo.y + fy * uZoomLo;
+
+        float zx_h = 0.0, zx_l = 0.0;
+        float zy_h = 0.0, zy_l = 0.0;
+
+        int iter = 0;
+        int maxIter = int(uIterations);
+
+        for (int i = 0; i < 2000; i++) {
+            if (i >= maxIter) break;
+
+            // sin(z) + c in DS
+            float exp_zh = exp(zy_h);
+            float exp_mzh = exp(-zy_h);
+            float cosh_zh = 0.5 * (exp_zh + exp_mzh);
+            float sinh_zh = 0.5 * (exp_zh - exp_mzh);
+            float nx_h = sin(zx_h) * cosh_zh + c_x_h;
+            float ny_h = cos(zx_h) * sinh_zh + c_y_h;
+            float nx_l = c_x_l;
+            float ny_l = c_y_l;
+
+            zx_h = nx_h;
+            zx_l = nx_l;
+            zy_h = ny_h;
+            zy_l = ny_l;
+
+            float mag2 = zx_h * zx_h + zy_h * zy_h;
+            if (mag2 > 256.0) break;
+
+            iter++;
+        }
+
+        if (iter == maxIter) {
+            gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+        } else {
+            float mag2 = zx_h * zx_h + zy_h * zy_h + 2.0 * (zx_h * zx_l + zy_h * zy_l);
+            float smoothVal = float(iter) + 1.0 - log2(max(mag2, 1e-20));
             float color = smoothVal / uIterations;
             vec3 col = 0.5 + 0.5 * cos(6.28318 * (vec3(1.0, 0.6, 0.4) * color + uColorShift));
             gl_FragColor = vec4(col, 1.0);
@@ -176,28 +288,59 @@ function loadShader(gl, type, source) {
     return shader;
 }
 
-const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
+// Multiple shader programs - one per fractal family
+const shaderPrograms = {};
 
-if (!shaderProgram) {
-    alert('An error occurred while initializing the shader program.');
+function createShaderProgram(gl, source) {
+    const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
+    const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, source);
+
+    const program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.error('Error linking shader program: ' + gl.getProgramInfoLog(program));
+        return null;
+    }
+    return program;
 }
 
-const programInfo = {
-    program: shaderProgram,
-    attribLocations: {
-        vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
-    },
-    uniformLocations: {
-        resolution: gl.getUniformLocation(shaderProgram, 'uResolution'),
-        offsetHi: gl.getUniformLocation(shaderProgram, 'uOffsetHi'),
-        offsetLo: gl.getUniformLocation(shaderProgram, 'uOffsetLo'),
-        zoomHi: gl.getUniformLocation(shaderProgram, 'uZoomHi'),
-        zoomLo: gl.getUniformLocation(shaderProgram, 'uZoomLo'),
-        iterations: gl.getUniformLocation(shaderProgram, 'uIterations'),
-        colorShift: gl.getUniformLocation(shaderProgram, 'uColorShift'),
-        fractalType: gl.getUniformLocation(shaderProgram, 'uFractalType'),
-    },
-};
+function initShaderPrograms() {
+    shaderPrograms['quad'] = createShaderProgram(gl, fsSourceQuad);
+    shaderPrograms['bs'] = createShaderProgram(gl, fsSourceBS);
+    shaderPrograms['sin'] = createShaderProgram(gl, fsSourceSin);
+
+    // Validate all loaded
+    for (const [name, prog] of Object.entries(shaderPrograms)) {
+        if (!prog) {
+            console.error(`Failed to load ${name} shader`);
+        } else {
+            console.log(`✅ Shader loaded: ${name}`);
+        }
+    }
+}
+
+initShaderPrograms();
+
+// Current active program (starts with Mandelbrot = quad)
+let currentShaderProgram = shaderPrograms['quad'];
+let currentFractalFamily = 'quad'; // 'quad' | 'bs' | 'sin'
+
+function getUniformLocations(program) {
+    return {
+        resolution: gl.getUniformLocation(program, 'uResolution'),
+        offsetHi: gl.getUniformLocation(program, 'uOffsetHi'),
+        offsetLo: gl.getUniformLocation(program, 'uOffsetLo'),
+        zoomHi: gl.getUniformLocation(program, 'uZoomHi'),
+        zoomLo: gl.getUniformLocation(program, 'uZoomLo'),
+        iterations: gl.getUniformLocation(program, 'uIterations'),
+        colorShift: gl.getUniformLocation(program, 'uColorShift'),
+    };
+}
+
+let uniformLocations = getUniformLocations(currentShaderProgram);
 
 const buffers = initBuffers(gl);
 
@@ -238,6 +381,17 @@ let iterOscillateMax = 1000;
 let oscillateTargetIter = 100;
 let oscillateSmoothIter = 100;
 
+// Performance tracking
+let perfMode = false;
+let frameTimes = []; // Recent frame times for FPS calculation
+let avgFPS = 0;
+let avgIterations = 0;
+let maxIterationsSeen = 0;
+let totalPixelOps = 0;
+let frameCount = 0;
+let perfDisplayTimer = 0;
+const MAX_FRAME_HISTORY = 30; // Keep 30 frames for rolling average
+
 function resizeCanvasToDisplaySize(canvas) {
     const dpr = window.devicePixelRatio || 1;
     const displayWidth = Math.floor(window.innerWidth * dpr);
@@ -252,43 +406,187 @@ function resizeCanvasToDisplaySize(canvas) {
     return false;
 }
 
-function drawScene(gl, programInfo, buffers) {
+function getFractalFamily(type) {
+    // 'quad': Mandelbrot, Julia, Tricorn (z^2 + c style)
+    // 'bs': Burning Ship (uses abs)
+    // 'sin': Sinusoidal (uses exp, sin, cos)
+    if (type === 2) return 'bs';
+    if (type === 4) return 'sin';
+    return 'quad';
+}
 
-    gl.useProgram(programInfo.program);
+function drawScene(gl, buffers) {
+    const fractalType = parseInt(document.getElementById('fractal-type').value);
+    const targetFamily = getFractalFamily(fractalType);
+
+    // Switch shader if fractal family changed
+    if (targetFamily !== currentFractalFamily) {
+        currentFractalFamily = targetFamily;
+        currentShaderProgram = shaderPrograms[targetFamily];
+        uniformLocations = getUniformLocations(currentShaderProgram);
+        console.log(`🔄 Switched to ${targetFamily} shader`);
+    }
+
+    gl.useProgram(currentShaderProgram);
     gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
-    gl.vertexAttribPointer(programInfo.attribLocations.vertexPosition, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
+    gl.vertexAttribPointer(gl.getAttribLocation(currentShaderProgram, 'aVertexPosition'), 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(gl.getAttribLocation(currentShaderProgram, 'aVertexPosition'));
 
-    gl.uniform2f(programInfo.uniformLocations.resolution, canvas.width, canvas.height);
+    gl.uniform2f(uniformLocations.resolution, canvas.width, canvas.height);
 
     // DS math for offset
     const offsetHi = [Math.fround(offset.x), Math.fround(offset.y)];
     const offsetLo = [offset.x - Math.fround(offset.x), offset.y - Math.fround(offset.y)];
-    gl.uniform2f(programInfo.uniformLocations.offsetHi, offsetHi[0], offsetHi[1]);
-    gl.uniform2f(programInfo.uniformLocations.offsetLo, offsetLo[0], offsetLo[1]);
+    gl.uniform2f(uniformLocations.offsetHi, offsetHi[0], offsetHi[1]);
+    gl.uniform2f(uniformLocations.offsetLo, offsetLo[0], offsetLo[1]);
 
     // DS math for zoom
     const zoomHi = Math.fround(zoom);
     const zoomLo = zoom - Math.fround(zoom);
-    gl.uniform1f(programInfo.uniformLocations.zoomHi, zoomHi);
-    gl.uniform1f(programInfo.uniformLocations.zoomLo, zoomLo);
+    gl.uniform1f(uniformLocations.zoomHi, zoomHi);
+    gl.uniform1f(uniformLocations.zoomLo, zoomLo);
 
-    gl.uniform1f(programInfo.uniformLocations.iterations,
-parseFloat(document.getElementById('iterations').value));
-    gl.uniform1f(programInfo.uniformLocations.colorShift,
+    const iterValue = parseFloat(document.getElementById('iterations').value);
+    gl.uniform1f(uniformLocations.iterations, iterValue);
+    gl.uniform1f(uniformLocations.colorShift,
 parseFloat(document.getElementById('color-shift').value));
-    gl.uniform1i(programInfo.uniformLocations.fractalType,
-parseInt(document.getElementById('fractal-type').value));
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 
+function drawPerfOverlay() {
+    const w = perfCanvas.width;
+    const h = perfCanvas.height;
+    perfCtx.clearRect(0, 0, w, h);
+
+    perfCtx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+    perfCtx.fillRect(0, 0, w, h);
+
+    perfCtx.font = '12px monospace';
+    const lineH = 20;
+    let y = 20;
+
+    const zoomDepth = -Math.log10(zoom);
+    const iterValue = parseFloat(document.getElementById('iterations').value);
+    const familyNames = { 'quad': 'z²+c', 'bs': 'Burning Ship', 'sin': 'Sinusoidal' };
+    const familyColors = { 'quad': '#4fc3f7', 'bs': '#ff7043', 'sin': '#ab47bc' };
+
+    perfCtx.fillStyle = '#fff';
+    perfCtx.fillText('⚡ PERFORMANCE MODE', 10, y);
+    y += lineH;
+
+    // FPS
+    const fpsColor = avgFPS > 30 ? '#4caf50' : avgFPS > 15 ? '#ff9800' : '#f44336';
+    perfCtx.fillStyle = fpsColor;
+    perfCtx.fillText(`FPS:         ${avgFPS.toFixed(1)}`, 10, y);
+    y += lineH;
+
+    // Frame time
+    perfCtx.fillStyle = '#aaa';
+    perfCtx.fillText(`Frame time:  ${(1000/avgFPS).toFixed(1)}ms`, 10, y);
+    y += lineH;
+
+    // Separator
+    y += 4;
+    perfCtx.fillStyle = '#555';
+    perfCtx.fillRect(10, y, 300, 1);
+    y += lineH;
+
+    // Fractal info
+    const currentType = parseInt(document.getElementById('fractal-type').value);
+    const typeNames = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Sinusoidal'];
+    perfCtx.fillStyle = familyColors[currentFractalFamily] || '#fff';
+    perfCtx.fillText(`Fractal:     ${typeNames[currentType] || 'Unknown'}`, 10, y);
+    y += lineH;
+
+    perfCtx.fillStyle = familyColors[currentFractalFamily] || '#fff';
+    perfCtx.fillText(`Shader:      ${familyNames[currentFractalFamily] || 'N/A'}`, 10, y);
+    y += lineH;
+
+    // Zoom info
+    perfCtx.fillStyle = '#90caf9';
+    perfCtx.fillText(`Zoom:        10^${zoomDepth.toFixed(1)}`, 10, y);
+    y += lineH;
+
+    perfCtx.fillStyle = '#aaa';
+    perfCtx.fillText(`Zoom value:  ${zoom.toExponential(3)}`, 10, y);
+    y += lineH;
+
+    // Iterations
+    perfCtx.fillStyle = '#ce93d8';
+    perfCtx.fillText(`Iter limit:  ${iterValue}`, 10, y);
+    y += lineH;
+
+    // DS cost estimate
+    const opsPerIter = currentFractalFamily === 'quad' ? 16 : 
+                       currentFractalFamily === 'bs' ? 18 : 24; // sin has expensive ops
+    const totalOps = iterValue * opsPerIter;
+    perfCtx.fillStyle = '#81c784';
+    perfCtx.fillText(`DS ops/pix:  ~${(totalOps / 1e6).toFixed(1)}M (${opsPerIter}×${iterValue})`, 10, y);
+    y += lineH;
+
+    // Resolution
+    perfCtx.fillStyle = '#aaa';
+    perfCtx.fillText(`Resolution:  ${canvas.width}×${canvas.height}`, 10, y);
+    y += lineH;
+
+    // Total pixels
+    const totalPixels = canvas.width * canvas.height;
+    perfCtx.fillStyle = '#aaa';
+    perfCtx.fillText(`Total pixels: ${(totalPixels / 1e6).toFixed(2)}M`, 10, y);
+
+    // FPS gauge bar
+    y = 180;
+    perfCtx.fillStyle = '#333';
+    perfCtx.fillRect(10, y, 300, 10);
+    const fpsRatio = Math.min(avgFPS / 60, 1);
+    const gaugeColor = fpsRatio > 0.7 ? '#4caf50' : fpsRatio > 0.3 ? '#ff9800' : '#f44336';
+    perfCtx.fillStyle = gaugeColor;
+    perfCtx.fillRect(10, y, 300 * fpsRatio, 10);
+    perfCtx.fillStyle = '#fff';
+    perfCtx.font = '10px monospace';
+    perfCtx.fillText('FPS Gauge', 140, y + 9);
+    perfCtx.font = '12px monospace';
+}
+
+// Performance overlay canvas (hidden by default)
+const perfCanvas = document.createElement('canvas');
+perfCanvas.id = 'perfOverlay';
+perfCanvas.style.cssText = `
+    position: fixed; top: 10px; right: 10px; z-index: 9999;
+    background: rgba(0,0,0,0.85); color: #0f0; font: 12px monospace;
+    padding: 12px; border-radius: 8px; pointer-events: none;
+    display: none; line-height: 1.6;
+`;
+document.body.appendChild(perfCanvas);
+const perfCtx = perfCanvas.getContext('2d');
+perfCanvas.width = 320;
+perfCanvas.height = 200;
+
 function render(timestamp = 0) {
+    const frameStart = performance.now();
     resizeCanvasToDisplaySize(canvas);
 
     if (lastFrameTime !== 0) {
         const deltaMs = timestamp - lastFrameTime;
         const deltaSec = deltaMs / 1000;
+
+        // Frame time tracking
+        frameTimes.push(deltaMs);
+        if (frameTimes.length > MAX_FRAME_HISTORY) frameTimes.shift();
+        frameCount++;
+        const currentFPS = 1000 / deltaMs;
+        const avgFrameTime = frameTimes.reduce((a, b) => a + b, 0) / frameTimes.length;
+        avgFPS = Math.round(1000 / avgFrameTime * 10) / 10;
+
+        // Update perf display every ~500ms
+        if (perfMode) {
+            perfDisplayTimer += deltaMs;
+            if (perfDisplayTimer > 500) {
+                perfDisplayTimer = 0;
+                drawPerfOverlay();
+            }
+        }
 
         // Continuous zoom
         if (isAutoZooming) {
@@ -355,7 +653,7 @@ function render(timestamp = 0) {
     }
 
     lastFrameTime = timestamp;
-    drawScene(gl, programInfo, buffers);
+    drawScene(gl, buffers);
     requestAnimationFrame(render);
 }
 
@@ -395,6 +693,13 @@ document.getElementById('toggle-iter-osc').addEventListener('click', (e) => {
     oscControls.forEach(ctrl => {
         ctrl.style.display = isIterOscillating ? 'block' : 'none';
     });
+});
+
+document.getElementById('toggle-perf').addEventListener('click', (e) => {
+    perfMode = !perfMode;
+    e.target.textContent = perfMode ? 'On' : 'Off';
+    e.target.classList.toggle('active', perfMode);
+    perfCanvas.style.display = perfMode ? 'block' : 'none';
 });
 
 document.getElementById('osc-min').addEventListener('input', (e) => {
@@ -651,6 +956,13 @@ document.getElementById('toggle-iter-osc').classList.toggle('active', isIterOsci
 document.addEventListener('keydown', (e) => {
     if (e.key === 'h' || e.key === 'H') {
         toggleUI();
+    }
+    if (e.key === 'p' || e.key === 'P') {
+        perfMode = !perfMode;
+        const btn = document.getElementById('toggle-perf');
+        btn.textContent = perfMode ? 'On' : 'Off';
+        btn.classList.toggle('active', perfMode);
+        perfCanvas.style.display = perfMode ? 'block' : 'none';
     }
 });
 
