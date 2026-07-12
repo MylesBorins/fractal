@@ -2,6 +2,14 @@
 
 This document provides context for AI agents working on the Fractal Explorer project.
 
+## ⚠️ Token Budget Rules — READ FIRST
+
+See [`AGENTS_WORKFLOW.md`](./AGENTS_WORKFLOW.md) for full workflow rules. Key rules:
+
+1. **Never >2 edits per turn** — Phase 3 = 5 edits = 2-3 turns
+2. **Never read full files** — use grep + offset/limit, max 30 lines at a time
+3. **Shaders should be separate files** — see AGENTS_WORKFLOW.md Rule 3
+
 ## Project Overview
 
 A WebGL-powered fractal visualization tool implementing Double-Single (DS) precision arithmetic for deep zooming (up to 10⁻³⁰).

@@ -2,6 +2,27 @@
 
 ## Completed
 
+### ✅ Phase 0: Module Refactor — Audit & Wiring Complete
+- **All imports verified** — every import resolves to a valid export
+- **No circular dependencies** — clean tree: main.js → state/shaders/render/interaction
+- **All S.<property> refs valid** — 28 unique S properties exist in stateStore.js
+- **Dead code removed** — initInteraction stub, duplicate imports cleaned
+- **Single entry point** — index.html → `<script src="main.js">` → everything else
+- **Sub-agent extension** — `task-dispatch` built, linked globally, ready for dispatch
+- **interaction.js** — Fixed imports: `canvas` from state.js, `S` from stateStore.js
+- **interaction.js** — All bare state refs replaced with `S.<property>` (55+ changes)
+- **main.js** — Added imports for `gl`, `canvas` from state.js, `shaderPrograms` from shaders.js
+- **main.js** — Removed dead code (`currentShaderProgram`, `uniformLocations`)
+- **Extension**: Created `task-dispatch` sub-agent extension in pi-agent-extensions
+
+### ✅ Phase 1: Deep Zoom Precision Fix
+- **Adaptive exponent-based splitting** — replaced `Math.fround(x)` with `splitFloat(x)` that splits by nearest power-of-2, avoiding underflow at extreme zooms (10⁻³⁰+)
+- **Shader low-low cross-terms** — added `zx_l * zx_l`, `zy_l * zy_l`, and `2.0 * zx_l * zy_l` to all DS squaring operations (quad, burning ship, sinusoidal)
+- **Sinusoidal Taylor expansion** — replaced naive `nx_l = c_x_l` with first-order Taylor derivatives: `sin(x+dx) ≈ sin(x) + dx·cos(x)`, `sinh(y+dy) ≈ sinh(y) + dy·cosh(y)`
+- **Smooth coloring magnitude** — added `+ zx_l * zx_l + zy_l * zy_l` to all three shader magnitude calculations
+- **Adaptive iteration scaling** — auto-iterations now scale with zoom depth (base 100 + 150 × zoomDecade), shader loop bound raised to 10,000, hard cap at 5,000
+- **Perf overlay** — added auto-iter status line showing mode and cap
+
 ### ✅ Side Panel Redesign
 - Permanent drawer on the left side
 - Collapses to small 50px hint bar
