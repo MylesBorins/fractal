@@ -13,7 +13,7 @@
         float aspect = uResolution.x / uResolution.y;
 
         float fx = (uv.x - 0.5) * aspect;
-        float fy = (uv.y - 0.5);
+        float fy = (0.5 - uv.y);
 
         float c_x_h = uOffsetHi.x + fx * uZoomHi;
         float c_x_l = uOffsetLo.x + fx * uZoomLo;
@@ -21,6 +21,8 @@
         float c_y_l = uOffsetLo.y + fy * uZoomLo;
 
         // Burning Ship: z = 0, c = pixel position
+// Formula: z_{n+1} = (|Re(z)| + i|Im(z)|)^2 + c
+// Expected: distinctive ship shape with seahorse valleys and flames
         float zx_h = 0.0, zx_l = 0.0;
         float zy_h = 0.0, zy_l = 0.0;
 

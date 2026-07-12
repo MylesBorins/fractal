@@ -14,10 +14,10 @@
         float aspect = uResolution.x / uResolution.y;
 
         float fx = (uv.x - 0.5) * aspect;
-        float fy = (uv.y - 0.5);
+        float fy = (0.5 - uv.y);
 
         // Julia set constant (fixed c for Julia)
-        vec2 juliaC = vec2(-0.7, 0.27015);
+        vec2 juliaC = vec2(-0.7269, -0.1889);
 
         // z in DS: z = (z_h + z_l)
         float zx_h, zx_l, zy_h, zy_l;
@@ -67,6 +67,8 @@
                 ny_l = zxy_l + cj_l_y;
             } else {
                 // Tricorn: z = conj(z)^2 + c
+// (Also called the "Anti-Mandelbrot" - rotated & spiky version)
+// Good viewing params: offset(-0.4, 0.0), zoom 2.0
                 nx_h = zx2_h - zy2_h + c_x_h;
                 ny_h = -zxy_h + c_y_h;
                 nx_l = zx2_l - zy2_l + c_x_l;

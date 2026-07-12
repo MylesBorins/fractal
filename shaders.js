@@ -60,5 +60,6 @@ export function getUniformLocations(gl, program) {
         zoomLo: gl.getUniformLocation(program, 'uZoomLo'),
         iterations: gl.getUniformLocation(program, 'uIterations'),
         colorShift: gl.getUniformLocation(program, 'uColorShift'),
+        fractalType: gl.getUniformLocation(program, 'uFractalType'),
     };
 }

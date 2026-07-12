@@ -13,7 +13,7 @@
         float aspect = uResolution.x / uResolution.y;
 
         float fx = (uv.x - 0.5) * aspect;
-        float fy = (uv.y - 0.5);
+        float fy = (0.5 - uv.y);
 
         float c_x_h = uOffsetHi.x + fx * uZoomHi;
         float c_x_l = uOffsetLo.x + fx * uZoomLo;
@@ -29,15 +29,27 @@
         for (int i = 0; i < 2000; i++) {
             if (i >= maxIter) break;
 
-            // sin(z) + c in DS
+            // sin(z) + c in DS precision
             float exp_zh = exp(zy_h);
             float exp_mzh = exp(-zy_h);
             float cosh_zh = 0.5 * (exp_zh + exp_mzh);
             float sinh_zh = 0.5 * (exp_zh - exp_mzh);
-            float nx_h = sin(zx_h) * cosh_zh + c_x_h;
-            float ny_h = cos(zx_h) * sinh_zh + c_y_h;
-            float nx_l = c_x_l;
-            float ny_l = c_y_l;
+
+            // sin(z) = sin(x)cosh(y) + i*cos(x)sinh(y)
+            float sin_zx_h = sin(zx_h);
+            float cos_zx_h = cos(zx_h);
+            
+            float nx_h = sin_zx_h * cosh_zh + c_x_h;
+            float ny_h = cos_zx_h * sinh_zh + c_y_h;
+
+            // DS precision lower parts via chain rule:
+            // f(z) = sin(z) + c, f'(z) = cos(z)
+            // f'(z_h) = cos(zx_h)cosh(zy_h) + i*sin(zx_h)sinh(zy_h)
+            // f'(z_h) * z_l = (cos_zx_h*cosh_zh*zx_l - sin_zx_h*sinh_zh*zy_l) + i*(cos_zx_h*cosh_zh*zy_l + sin_zx_h*sinh_zh*zx_l)
+            float cos_zx_zh = cos_zx_h * cosh_zh;
+            float sin_zx_sh = sin_zx_h * sinh_zh;
+            float nx_l = cos_zx_zh * zx_l - sin_zx_sh * zy_l + c_x_l;
+            float ny_l = cos_zx_zh * zy_l + sin_zx_sh * zx_l + c_y_l;
 
             zx_h = nx_h;
             zx_l = nx_l;

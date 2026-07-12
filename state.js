@@ -9,12 +9,12 @@ function initBuffers(gl) {
 }
 export const buffers = initBuffers(gl);
 
-const perfCanvas = document.createElement('canvas');
-perfCanvas.id = 'perfOverlay';
-perfCanvas.style.cssText = 'position:fixed;top:10px;right:10px;z-index:9999;background:rgba(0,0,0,0.85);color:#0f0;font:12px monospace;padding:12px;border-radius:8px;pointer-events:none;display:none;';
-document.body.appendChild(perfCanvas);
-export const perfCtx = perfCanvas.getContext('2d');
-export { canvas, gl, perfCanvas };
+const perfDiv = document.createElement('div');
+perfDiv.id = 'perfOverlay';
+perfDiv.style.cssText = 'position:fixed;top:10px;right:10px;z-index:9999;background:rgba(0,0,0,0.85);color:#0f0;font:12px monospace;padding:12px;border-radius:8px;pointer-events:none;display:none;white-space:pre;line-height:1.4;max-width:300px;min-width:250px;';
+document.body.appendChild(perfDiv);
+export const perfCtx = perfDiv;
+export { canvas, gl };
 
 export function getFractalFamily(type) {
     if (type === 2) return 'bs';

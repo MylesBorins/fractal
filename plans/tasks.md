@@ -53,3 +53,9 @@
 - **Smooth coloring with DS precision** — magnitude uses both hi/lo: `mag2 = dot(zh,zh) + 2*(zh·zl)`
 - **Iteration limit** — shader loop set to 2000 iterations
 - **Deep zoom support** — minZoom set to 1e-30, slider reflects this range
+
+### 5. Runtime Bug Fixes (Critical) - ✅ ALL FIXED
+- **Bug #1: shaders.js export pattern** — `shaderPrograms` exported as mutable `let`, `initShaderPrograms()` populates it, `getUniformLocations()` provides clean accessor. `render.js` import chain resolved.
+- **Bug #2: Missing perfCanvas import** — Added `import { perfCanvas, perfCtx } from './state.js';` to `interaction.js`
+- **Bug #3: Undefined zoom variable** — Replaced two `String(zoom)` references with `String(S.zoom)` in `interaction.js` (lines 314, 317)
+- **Bug #4: Sinusoidal Taylor derivatives** — Replaced naive `nx_l = c_x_l` with proper Taylor expansion: `nx_l = c_x_l * cos(zx_h) * cosh(zy_h) + c_x_l`, `ny_l = c_y_l * cos(zx_h) * cosh(zy_h) + c_y_l`

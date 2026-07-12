@@ -1,4 +1,4 @@
-import { canvas } from './state.js';
+import { canvas, perfCtx } from './state.js';
 import { S } from './stateStore.js';
 
 // UI Event Listeners
@@ -42,7 +42,7 @@ document.getElementById('toggle-perf').addEventListener('click', (e) => {
     S.perfMode = !S.perfMode;
     e.target.textContent = S.perfMode ? 'On' : 'Off';
     e.target.classList.toggle('active', S.perfMode);
-    perfCanvas.style.display = S.perfMode ? 'block' : 'none';
+    perfCtx.style.display = S.perfMode ? 'block' : 'none';
 });
 
 document.getElementById('osc-min').addEventListener('input', (e) => {
@@ -61,10 +61,30 @@ document.getElementById('osc-speed').addEventListener('input', (e) => {
 });
 
 document.getElementById('reset-view').addEventListener('click', () => {
-    S.zoom = 3.0;
-    S.offset.x = -0.743643887037158;
-    S.offset.y = 0.131825904205311;
-    document.getElementById('zoom').value = String(S.zoom);
+    resetToFractalDefaults(parseInt(document.getElementById('fractal-type').value));
+});
+
+// Default views per fractal type
+const fractalDefaults = {
+    0: { offset: { x: -0.743643887037158, y: 0.131825904205311 }, zoom: 3.0 },
+    1: { offset: { x: 0, y: 0 }, zoom: 3.0 },
+    2: { offset: { x: -0.85, y: -0.7 }, zoom: 3.0 },
+    3: { offset: { x: -0.5, y: 0 }, zoom: 2.0 },
+    4: { offset: { x: 0, y: 0 }, zoom: 2.0 },
+};
+
+function resetToFractalDefaults(type) {
+    const d = fractalDefaults[type];
+    if (d) {
+        S.offset.x = d.offset.x;
+        S.offset.y = d.offset.y;
+        S.zoom = d.zoom;
+        document.getElementById('zoom').value = String(S.zoom);
+    }
+}
+
+document.getElementById('fractal-type').addEventListener('change', (e) => {
+    resetToFractalDefaults(parseInt(e.target.value));
 });
 
 document.getElementById('preset-select').addEventListener('change', (e) => {
@@ -112,7 +132,7 @@ window.addEventListener('mousemove', (e) => {
         const aspect = canvas.width / canvas.height;
 
         S.offset.x -= (dx / canvas.width) * aspect * S.zoom;
-        S.offset.y += (dy / canvas.height) * S.zoom;
+        S.offset.y -= (dy / canvas.height) * S.zoom;
 
         lastMousePos = { x: e.clientX, y: e.clientY };
     }
@@ -142,7 +162,7 @@ canvas.addEventListener('touchmove', (e) => {
         const aspect = canvas.width / canvas.height;
 
         S.offset.x -= (dx / canvas.width) * aspect * S.zoom;
-        S.offset.y += (dy / canvas.height) * S.zoom;
+        S.offset.y -= (dy / canvas.height) * S.zoom;
 
         lastMousePos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     } else if (e.touches.length === 2) {
@@ -286,7 +306,7 @@ document.addEventListener('keydown', (e) => {
         const btn = document.getElementById('toggle-perf');
         btn.textContent = S.perfMode ? 'On' : 'Off';
         btn.classList.toggle('active', S.perfMode);
-        perfCanvas.style.display = S.perfMode ? 'block' : 'none';
+        perfCtx.style.display = S.perfMode ? 'block' : 'none';
     }
 });
 
@@ -311,7 +331,7 @@ canvas.addEventListener('wheel', (e) => {
     S.offset.x = worldX - screenX * S.zoom;
     S.offset.y = worldY - screenY * S.zoom;
 
-    document.getElementById('zoom').value = String(zoom);
+    document.getElementById('zoom').value = String(S.zoom);
 }, { passive: false });
 
-document.getElementById('zoom').value = String(zoom);
+document.getElementById('zoom').value = String(S.zoom);
