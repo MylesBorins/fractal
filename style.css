@@ -427,6 +427,25 @@ input[type="range"], select {
     border-color: rgba(74, 158, 255, 0.6);
 }
 
+.action-btn {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(100, 200, 100, 0.15);
+    border: 1px solid rgba(100, 200, 100, 0.4);
+    border-radius: 6px;
+    color: #a8e6a0;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    background: rgba(100, 200, 100, 0.25);
+    border-color: rgba(100, 200, 100, 0.6);
+}
+
 /* Full width buttons */
 .btn-full {
     width: 100%;

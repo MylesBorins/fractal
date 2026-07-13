@@ -72,6 +72,21 @@ document.getElementById('osc-speed').addEventListener('input', (e) => {
     document.getElementById('osc-speed-val').textContent = S.iterOscillateSpeed.toFixed(1);
 });
 
+// Copy performance stats to clipboard
+document.getElementById('copy-stats').addEventListener('click', () => {
+    const zDepth = -Math.log10(S.zoom);
+    const iterVal = parseFloat(document.getElementById('iterations').value);
+    const curType = parseInt(document.getElementById('fractal-type').value);
+    const tNames = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Sinusoidal'];
+    const fNames = { quad: 'z²+c', bs: 'Burning Ship', sin: 'Sinusoidal' };
+    const stats = `${tNames[curType]} | Zoom: ${S.zoom.toExponential(3)} (10^${zDepth.toFixed(1)}) | Iter: ${iterVal} | FPS: ${S.avgFPS.toFixed(1)} | Shader: ${fNames[S.shaderFamily]} | Offset: (${S.offset.x.toExponential(3)}, ${S.offset.y.toExponential(3)})`;
+    navigator.clipboard.writeText(stats).then(() => {
+        const btn = document.getElementById('copy-stats');
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy Stats'; }, 1500);
+    });
+});
+
 document.getElementById('reset-view').addEventListener('click', () => {
     resetToFractalDefaults(parseInt(document.getElementById('fractal-type').value));
 });
