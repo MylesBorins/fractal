@@ -68,7 +68,7 @@ precision highp float;
             zy = ny;
 
             // Magnitude check
-            float mag2 = zx.x * zx.x + zy.x * zy.x;
+            float mag2 = (zx.x + zx.y) * (zx.x + zx.y) + (zy.x + zy.y) * (zy.x + zy.y);
             if (mag2 > 256.0) break;
 
             iter++;
@@ -99,7 +99,7 @@ precision highp float;
             float debugBright = clamp(log2(max(abs(c_x.y), 1e-30)) / 20.0 + 0.5, 0.0, 1.0);
             gl_FragColor = vec4(debugBright * 0.3, debugBright * 0.5, debugBright * 0.7, 1.0);
         } else {
-            float mag2 = zx.x * zx.x + zy.x * zy.x;
+            float mag2 = (zx.x + zx.y) * (zx.x + zx.y) + (zy.x + zy.y) * (zy.x + zy.y);
             float smoothVal = float(iter) + 1.0 - log2(max(mag2, 1e-20));
             float color = smoothVal / uIterations;
             vec3 col = 0.5 + 0.5 * cos(6.28318 * (vec3(1.0, 0.6, 0.4) * color + uColorShift));

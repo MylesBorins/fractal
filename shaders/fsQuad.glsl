@@ -69,8 +69,7 @@ precision highp float;
             } else {
                 // Tricorn: z = conj(z)² + c → real same, imag = -imag + c_y
                 // conj(z)² = (zx² - zy²) + i·(-2·zx·zy)
-                vec2 negImag = dsAdd(vec2(0.0), vec2(0.0, 0.0));
-                negImag = dsSub(vec2(0.0, 0.0), imagPart);  // -(2·zx·zy)
+                vec2 negImag = dsSub(vec2(0.0, 0.0), imagPart);  // -(2·zx·zy)
                 nx = dsAdd(realPart, c_x);
                 ny = dsAdd(negImag, c_y);
             }
@@ -79,7 +78,7 @@ precision highp float;
             zy = ny;
 
             // Magnitude check: use hi component only
-            float mag2 = zx.x * zx.x + zy.x * zy.x;
+            float mag2 = (zx.x + zx.y) * (zx.x + zx.y) + (zy.x + zy.y) * (zy.x + zy.y);
             if (mag2 > 256.0) break;
 
             iter++;
@@ -111,7 +110,7 @@ precision highp float;
             float debugBright = clamp(log2(max(abs(c_x.y), 1e-30)) / 20.0 + 0.5, 0.0, 1.0);
             gl_FragColor = vec4(debugBright * 0.3, debugBright * 0.5, debugBright * 0.7, 1.0);
         } else {
-            float mag2 = zx.x * zx.x + zy.x * zy.x;
+            float mag2 = (zx.x + zx.y) * (zx.x + zx.y) + (zy.x + zy.y) * (zy.x + zy.y);
             float smoothVal = float(iter) + 1.0 - log2(max(mag2, 1e-20));
             float color = smoothVal / uIterations;
             vec3 col = 0.5 + 0.5 * cos(6.28318 * (vec3(1.0, 0.6, 0.4) * color + uColorShift));
