@@ -6,6 +6,25 @@ const vsSource = `
 `;
 
 export let shaderPrograms = {};
+let blitProgram = null;
+
+// Texture blit vertex/fragment shaders (for supersampling downscale)
+const blitVS = `
+    attribute vec2 aVertexPosition;
+    varying vec2 vUV;
+    void main() {
+        vUV = aVertexPosition * 0.5 + 0.5;
+        gl_Position = vec4(aVertexPosition, 0.0, 1.0);
+    }
+`;
+const blitFS = `
+    precision mediump float;
+    uniform sampler2D uTexture;
+    varying vec2 vUV;
+    void main() {
+        gl_FragColor = texture2D(uTexture, vUV);
+    }
+`;
 
 function loadShader(gl, type, source) {
     const shader = gl.createShader(type);
@@ -22,7 +41,11 @@ function loadShader(gl, type, source) {
 }
 
 function createShaderProgram(gl, fragmentSource) {
-    const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource);
+    return createShaderProgramCustom(gl, vsSource, fragmentSource);
+}
+
+function createShaderProgramCustom(gl, vertexSource, fragmentSource) {
+    const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vertexSource);
     const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
 
     const program = gl.createProgram();
@@ -49,6 +72,23 @@ export function initShaderPrograms(gl) {
             console.log(`✅ Shader loaded: ${name}`);
         }
     }
+
+    // Create blit program for supersampling (needs its own vertex shader with vUV)
+    blitProgram = createShaderProgramCustom(gl, blitVS, blitFS);
+    if (blitProgram) {
+        console.log('✅ Blit shader loaded');
+    }
+}
+
+export function getBlitProgram() {
+    return blitProgram;
+}
+
+export function getBlitUniformLocations(gl) {
+    return {
+        texture: gl.getUniformLocation(blitProgram, 'uTexture'),
+        aVertexPosition: gl.getAttribLocation(blitProgram, 'aVertexPosition'),
+    };
 }
 
 export function getUniformLocations(gl, program) {
@@ -61,5 +101,7 @@ export function getUniformLocations(gl, program) {
         iterations: gl.getUniformLocation(program, 'uIterations'),
         colorShift: gl.getUniformLocation(program, 'uColorShift'),
         fractalType: gl.getUniformLocation(program, 'uFractalType'),
+        debugMode: gl.getUniformLocation(program, 'uDebugMode'),
+        superSample: gl.getUniformLocation(program, 'uSuperSample'),
     };
 }

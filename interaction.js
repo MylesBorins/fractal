@@ -45,6 +45,18 @@ document.getElementById('toggle-perf').addEventListener('click', (e) => {
     perfCtx.style.display = S.perfMode ? 'block' : 'none';
 });
 
+document.getElementById('toggle-debug-color').addEventListener('click', (e) => {
+    S.debugMode = S.debugMode === 0 ? 1 : 0;
+    e.target.textContent = S.debugMode ? 'On' : 'Off';
+    e.target.classList.toggle('active', S.debugMode !== 0);
+});
+
+document.getElementById('toggle-supersample').addEventListener('click', (e) => {
+    S.supersample = !S.supersample;
+    e.target.textContent = S.supersample ? 'On' : 'Off';
+    e.target.classList.toggle('active', S.supersample);
+});
+
 document.getElementById('osc-min').addEventListener('input', (e) => {
     S.iterOscillateMin = parseInt(e.target.value);
     document.getElementById('osc-min-val').textContent = S.iterOscillateMin;
@@ -296,6 +308,8 @@ document.getElementById('toggle-zoom').classList.toggle('active', S.isAutoZoomin
 document.getElementById('toggle-auto-iter').classList.toggle('active', S.useAutoIterations);
 document.getElementById('toggle-color-cycle').classList.toggle('active', S.isColorCycling);
 document.getElementById('toggle-iter-osc').classList.toggle('active', S.isIterOscillating);
+document.getElementById('toggle-debug-color').classList.toggle('active', S.debugMode !== 0);
+document.getElementById('toggle-supersample').classList.toggle('active', S.supersample);
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'h' || e.key === 'H') {
@@ -307,6 +321,12 @@ document.addEventListener('keydown', (e) => {
         btn.textContent = S.perfMode ? 'On' : 'Off';
         btn.classList.toggle('active', S.perfMode);
         perfCtx.style.display = S.perfMode ? 'block' : 'none';
+    }
+    if (e.key === 's' || e.key === 'S') {
+        S.supersample = !S.supersample;
+        const btn = document.getElementById('toggle-supersample');
+        btn.textContent = S.supersample ? 'On' : 'Off';
+        btn.classList.toggle('active', S.supersample);
     }
 });
 
@@ -321,7 +341,7 @@ canvas.addEventListener('wheel', (e) => {
 
     const aspect = canvas.width / canvas.height;
     const screenX = (mouseX - 0.5) * aspect;
-    const screenY = (mouseY - 0.5);
+    const screenY = (0.5 - mouseY);
 
     const worldX = S.offset.x + screenX * S.zoom;
     const worldY = S.offset.y + screenY * S.zoom;

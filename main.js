@@ -10,12 +10,31 @@ import { S } from './stateStore.js';
 import { resizeCanvasToDisplaySize } from './state.js';
 import { render } from './render.js';
 
-// Load shader sources as inline text blocks
+// Load shader sources with DS math module injected
+// All shaders are GLSL ES 1.00 — dsMath uses split-based math (no fma)
+// Precision directive must come BEFORE any function definitions
 function loadShaderSources() {
+    const precisionPrefix = 'precision highp float;\n';
+    const t = Date.now(); // cache-bust
     return Promise.all([
-        fetch('shaders/fsQuad.glsl').then(r => r.text()),
-        fetch('shaders/fsBS.glsl').then(r => r.text()),
-        fetch('shaders/fsSin.glsl').then(r => r.text()),
+        fetch(`shaders/fsQuad.glsl?t=${t}`).then(r => r.text()).then(quadSource => {
+            quadSource = quadSource.replace('precision highp float;', '');
+            return fetch(`shaders/dsMath.glsl?t=${t}`).then(r => r.text()).then(mathSource =>
+                precisionPrefix + mathSource + quadSource
+            );
+        }),
+        fetch(`shaders/fsBS.glsl?t=${t}`).then(r => r.text()).then(bsSource => {
+            bsSource = bsSource.replace('precision highp float;', '');
+            return fetch(`shaders/dsMath.glsl?t=${t}`).then(r => r.text()).then(mathSource =>
+                precisionPrefix + mathSource + bsSource
+            );
+        }),
+        fetch(`shaders/fsSin.glsl?t=${t}`).then(r => r.text()).then(sinSource => {
+            sinSource = sinSource.replace('precision highp float;', '');
+            return fetch(`shaders/dsMath.glsl?t=${t}`).then(r => r.text()).then(mathSource =>
+                precisionPrefix + mathSource + sinSource
+            );
+        }),
     ]);
 }
 

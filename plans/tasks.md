@@ -35,6 +35,26 @@
 
 ## Current Issues
 
+### 6. Zoom Precision Spec — Phase 0 (In Progress)
+- **Spec saved**: `plans/zoom_precision_spec.md`
+- **0.1 — Rule out progressive/LOD rendering**: ✅ Confirmed — no progressive rendering in codebase, full-res framebuffer always
+- **0.2 — Rule out iteration count**: 🔄 Need browser testing — debug color mode + console hi/lo logging added, manual iteration slider available
+- **0.3 — Rule out missing AA**: 🔄 Added 2x supersampling pass (toggle button + S key) with FBO-based render
+- **0.4 — Log hi/lo values**: 🔄 Added debug color mode (toggle button) + console.log of oHi/oLo/zHi/zLo/c_x_h/c_x_l
+- **0.5 — Conclusion checkpoint**: Pending browser testing results
+
+### 7. Zoom Precision Spec — Phase 1 (Not Started)
+- Split precision unit tests
+- S.minZoom decision (1e-30 is unrealistic for current DS pipeline)
+
+### 8. Zoom Precision Spec — Phase 2 (Not Started)
+- GPU error-free DS arithmetic (twoSum, twoProd, dsAdd, dsMul, dsSqr)
+
+### 9. Zoom Precision Spec — Phase 3 (Not Started)
+- Validation against reference images and precision ceiling testing
+
+---
+
 ### 1. Julia Set - ✅ FIXED
 - Julia Set now renders correctly with proper DS precision handling
 - Fixed viewport/offset control for Julia fractal

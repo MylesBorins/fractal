@@ -29,4 +29,6 @@ export const S = {
     shaderFamily: 'quad',
     shaderProgram: null,
     shaderUniforms: null,
+    debugMode: 0, // 0=normal, 1=debug color
+    supersample: false,
 };

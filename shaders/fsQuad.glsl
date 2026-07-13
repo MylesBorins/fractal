@@ -1,4 +1,4 @@
-    precision highp float;
+precision highp float;
 
     uniform vec2 uResolution;
     uniform vec2 uOffsetHi;
@@ -8,6 +8,8 @@
     uniform float uIterations;
     uniform float uColorShift;
     uniform int uFractalType;
+    uniform int uDebugMode; // 0=normal, 1=debug color output
+    uniform int uSuperSample; // 0=off, 1=2x supersample
 
     void main() {
         vec2 uv = gl_FragCoord.xy / uResolution.xy;
@@ -17,20 +19,31 @@
         float fy = (0.5 - uv.y);
 
         // Julia set constant (fixed c for Julia)
-        vec2 juliaC = vec2(-0.7269, -0.1889);
+        vec2 juliaCReal = vec2(-0.7269, 0.0);
+        vec2 juliaCImag = vec2(-0.1889, 0.0);
 
-        // z in DS: z = (z_h + z_l)
-        float zx_h, zx_l, zy_h, zy_l;
+        // c as DS number: c = c.hi + c.lo = (offset + pixel*zoom)
+        // This preserves the DS precision from the JS side
+        vec2 c_x = dsAdd(vec2(uOffsetHi.x, uOffsetLo.x),
+                         dsMulScalar(fx, vec2(uZoomHi, uZoomLo)));
+        vec2 c_y = dsAdd(vec2(uOffsetHi.y, uOffsetLo.y),
+                         dsMulScalar(fy, vec2(uZoomHi, uZoomLo)));
+
+        float c_x_scalar = c_x.x + c_x.y;
+        float c_y_scalar = c_y.x + c_y.y;
+
+        float juliaCx = juliaCReal.x + juliaCReal.y;
+        float juliaCy = juliaCImag.x + juliaCImag.y;
+
+        float zx, zy;
         if (uFractalType == 1) {
-            // Julia: z = zoomed pixel position, c = juliaC (fixed)
-            zx_h = uOffsetHi.x + fx * uZoomHi;
-            zx_l = uOffsetLo.x + fx * uZoomLo;
-            zy_h = uOffsetHi.y + fy * uZoomHi;
-            zy_l = uOffsetLo.y + fy * uZoomLo;
+            // Julia: z = pixel position as scalar
+            zx = c_x_scalar;
+            zy = c_y_scalar;
         } else {
-            // Mandelbrot & Tricorn: z = 0, c = pixel position
-            zx_h = 0.0; zx_l = 0.0;
-            zy_h = 0.0; zy_l = 0.0;
+            // Mandelbrot & Tricorn: z = 0
+            zx = 0.0;
+            zy = 0.0;
         }
 
         int iter = 0;
@@ -39,60 +52,59 @@
         for (int i = 0; i < 2000; i++) {
             if (i >= maxIter) break;
 
-            // Common z^2 computation (used by Mandelbrot, Julia, Tricorn)
-            float zx2_h = zx_h * zx_h;
-            float zx2_l = 2.0 * zx_h * zx_l;
-            float zy2_h = zy_h * zy_h;
-            float zy2_l = 2.0 * zy_h * zy_l;
-            float zxy_h = 2.0 * zx_h * zy_h;
-            float zxy_l = 2.0 * (zx_h * zy_l + zx_l * zy_h);
+            // Standard Mandelbrot/Julia/Tricorn iteration (scalar for speed)
+            float zx2 = zx * zx;
+            float zy2 = zy * zy;
+            float zxzy = zx * zy;
 
-            float c_x_h = uOffsetHi.x + fx * uZoomHi;
-            float c_x_l = uOffsetLo.x + fx * uZoomLo;
-            float c_y_h = uOffsetHi.y + fy * uZoomHi;
-            float c_y_l = uOffsetLo.y + fy * uZoomLo;
-
-            float nx_h, nx_l, ny_h, ny_l;
+            float nx, ny;
 
             if (uFractalType == 0 || uFractalType == 1) {
-                // Mandelbrot: z = z^2 + c
-                // Julia: z = z^2 + juliaC
-                float cj_x = (uFractalType == 0) ? c_x_h : juliaC.x;
-                float cj_l_x = (uFractalType == 0) ? c_x_l : 0.0;
-                float cj_y = (uFractalType == 0) ? c_y_h : juliaC.y;
-                float cj_l_y = (uFractalType == 0) ? c_y_l : 0.0;
-                nx_h = zx2_h - zy2_h + cj_x;
-                nx_l = zx2_l - zy2_l + cj_l_x;
-                ny_h = zxy_h + cj_y;
-                ny_l = zxy_l + cj_l_y;
+                // Mandelbrot/Julia: z = z² + c
+                float cjx = (uFractalType == 1) ? juliaCx : c_x_scalar;
+                float cjy = (uFractalType == 1) ? juliaCy : c_y_scalar;
+                nx = zx2 - zy2 + cjx;
+                ny = 2.0 * zxzy + cjy;
             } else {
-                // Tricorn: z = conj(z)^2 + c
-// (Also called the "Anti-Mandelbrot" - rotated & spiky version)
-// Good viewing params: offset(-0.4, 0.0), zoom 2.0
-                nx_h = zx2_h - zy2_h + c_x_h;
-                ny_h = -zxy_h + c_y_h;
-                nx_l = zx2_l - zy2_l + c_x_l;
-                ny_l = -zxy_l + c_y_l;
+                // Tricorn: z = conj(z)² + c
+                nx = zx2 - zy2 + c_x_scalar;
+                ny = -(2.0 * zxzy) + c_y_scalar;
             }
 
-            zx_h = nx_h;
-            zx_l = nx_l;
-            zy_h = ny_h;
-            zy_l = ny_l;
+            zx = nx;
+            zy = ny;
 
-            float mag2 = zx_h * zx_h + zy_h * zy_h;
+            float mag2 = zx * zx + zy * zy;
             if (mag2 > 256.0) break;
 
             iter++;
         }
 
+        // Debug mode: output hi/lo values as colors
+        if (uDebugMode == 1) {
+            vec2 centerDist = abs(uv - 0.5);
+            bool isCenter = (centerDist.x < 0.02) && (centerDist.y < 0.02);
+
+            if (isCenter) {
+                float cXH = (log2(max(abs(c_x.x), 1e-30)) + 40.0) / 80.0 * (c_x.x >= 0.0 ? 1.0 : 0.0);
+                float cXL = (log2(max(abs(c_x.y), 1e-30)) + 40.0) / 80.0 * (c_x.y >= 0.0 ? 1.0 : 0.0);
+                float cYH = (log2(max(abs(c_y.x), 1e-30)) + 40.0) / 80.0 * (c_y.x >= 0.0 ? 1.0 : 0.0);
+                gl_FragColor = vec4(cXH, cXL, cYH, 1.0);
+            } else if ((centerDist.x > 0.3) && (centerDist.y > 0.3)) {
+                float zxH = (log2(max(abs(zx), 1e-30)) + 40.0) / 80.0 * (zx >= 0.0 ? 1.0 : 0.0);
+                float zyH = (log2(max(abs(zy), 1e-30)) + 40.0) / 80.0 * (zy >= 0.0 ? 1.0 : 0.0);
+                gl_FragColor = vec4(zxH, c_x.y * 10.0, zyH, 1.0);
+            } else {
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+            }
+            return;
+        }
+
         if (iter == maxIter) {
             gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
         } else {
-            // Smooth coloring with DS magnitude
-            float mag2 = zx_h * zx_h + zy_h * zy_h + 2.0 * (zx_h * zx_l + zy_h * zy_l);
+            float mag2 = zx * zx + zy * zy;
             float smoothVal = float(iter) + 1.0 - log2(max(mag2, 1e-20));
-
             float color = smoothVal / uIterations;
             vec3 col = 0.5 + 0.5 * cos(6.28318 * (vec3(1.0, 0.6, 0.4) * color + uColorShift));
             gl_FragColor = vec4(col, 1.0);
