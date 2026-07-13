@@ -8,8 +8,8 @@ precision highp float;
     uniform float uIterations;
     uniform float uColorShift;
     uniform int uFractalType;
-    uniform int uDebugMode; // 0=normal, 1=debug color output
-    uniform int uSuperSample; // 0=off, 1=2x supersample
+    uniform int uDebugMode;
+    uniform int uSuperSample;
 
     void main() {
         vec2 uv = gl_FragCoord.xy / uResolution.xy;
@@ -18,7 +18,6 @@ precision highp float;
         float fx = (uv.x - 0.5) * aspect;
         float fy = (0.5 - uv.y);
 
-        // Julia set constant (fixed c for Julia) — DS format
         vec2 juliaCReal = vec2(-0.7269, 0.0);
         vec2 juliaCImag = vec2(-0.1889, 0.0);
 
@@ -36,8 +35,8 @@ precision highp float;
             zy = c_y;
         } else {
             // Mandelbrot & Tricorn: z = 0
-            zx = vec2(0.0);
-            zy = vec2(0.0);
+            zx = vec2(0.0, 0.0);
+            zy = vec2(0.0, 0.0);
         }
 
         int iter = 0;
@@ -46,30 +45,21 @@ precision highp float;
         for (int i = 0; i < 2000; i++) {
             if (i >= maxIter) break;
 
-            // DS squaring of real and imaginary parts
-            vec2 zxSqr = dsSqr(zx);  // (zx.hi², 2*zx.hi*zx.lo)
-            vec2 zySqr = dsSqr(zy);  // (zy.hi², 2*zy.hi*zy.lo)
-
-            // z² = (zx² - zy²) + i·(2·zx·zy)
-            vec2 realPart = dsSub(zxSqr, zySqr);  // zx² - zy² (DS)
-
-            // 2·zx·zy = zx·zy + zx·zy (DS multiply + add)
-            vec2 zProd = dsMul(zx, zy);           // (zx.hi*zy.hi, zx.hi*zy.lo + zx.lo*zy.hi)
-            vec2 imagPart = dsAdd(zProd, zProd);  // 2·zx·zy (DS)
+            vec2 zxSqr = dsSqr(zx);
+            vec2 zySqr = dsSqr(zy);
+            vec2 realPart = dsSub(zxSqr, zySqr);
+            vec2 zProd = dsMul(zx, zy);
+            vec2 imagPart = dsAdd(zProd, zProd);
 
             vec2 nx, ny;
 
             if (uFractalType == 0 || uFractalType == 1) {
-                // Mandelbrot: z = z² + c
-                // Julia: z = z² + juliaC
                 vec2 c_xAdd = (uFractalType == 0) ? c_x : juliaCReal;
                 vec2 c_yAdd = (uFractalType == 0) ? c_y : juliaCImag;
                 nx = dsAdd(realPart, c_xAdd);
                 ny = dsAdd(imagPart, c_yAdd);
             } else {
-                // Tricorn: z = conj(z)² + c → real same, imag = -imag + c_y
-                // conj(z)² = (zx² - zy²) + i·(-2·zx·zy)
-                vec2 negImag = dsSub(vec2(0.0, 0.0), imagPart);  // -(2·zx·zy)
+                vec2 negImag = dsSub(vec2(0.0, 0.0), imagPart);
                 nx = dsAdd(realPart, c_x);
                 ny = dsAdd(negImag, c_y);
             }
@@ -77,7 +67,6 @@ precision highp float;
             zx = nx;
             zy = ny;
 
-            // Magnitude check: use hi component only
             float mag2 = (zx.x + zx.y) * (zx.x + zx.y) + (zy.x + zy.y) * (zy.x + zy.y);
             if (mag2 > 256.0) break;
 
@@ -106,9 +95,7 @@ precision highp float;
         }
 
         if (iter == maxIter) {
-            // Inside set — output c_x.y (DS low component) as brightness
-            float debugBright = clamp(log2(max(abs(c_x.y), 1e-30)) / 20.0 + 0.5, 0.0, 1.0);
-            gl_FragColor = vec4(debugBright * 0.3, debugBright * 0.5, debugBright * 0.7, 1.0);
+            gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
         } else {
             float mag2 = (zx.x + zx.y) * (zx.x + zx.y) + (zy.x + zy.y) * (zy.x + zy.y);
             float smoothVal = float(iter) + 1.0 - log2(max(mag2, 1e-20));

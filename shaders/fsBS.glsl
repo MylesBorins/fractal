@@ -7,8 +7,8 @@ precision highp float;
     uniform float uZoomLo;
     uniform float uIterations;
     uniform float uColorShift;
-    uniform int uDebugMode; // 0=normal, 1=debug color output
-    uniform int uSuperSample; // 0=off, 1=2x supersample
+    uniform int uDebugMode;
+    uniform int uSuperSample;
 
     void main() {
         vec2 uv = gl_FragCoord.xy / uResolution.xy;
@@ -17,15 +17,13 @@ precision highp float;
         float fx = (uv.x - 0.5) * aspect;
         float fy = (0.5 - uv.y);
 
-        // c as DS number
         vec2 c_x = dsAdd(vec2(uOffsetHi.x, uOffsetLo.x),
                          dsMulScalar(fx, vec2(uZoomHi, uZoomLo)));
         vec2 c_y = dsAdd(vec2(uOffsetHi.y, uOffsetLo.y),
                          dsMulScalar(fy, vec2(uZoomHi, uZoomLo)));
 
-        // Burning Ship: z = 0
-        vec2 zx = vec2(0.0);
-        vec2 zy = vec2(0.0);
+        vec2 zx = vec2(0.0, 0.0);
+        vec2 zy = vec2(0.0, 0.0);
 
         int iter = 0;
         int maxIter = int(uIterations);
@@ -33,19 +31,14 @@ precision highp float;
         for (int i = 0; i < 2000; i++) {
             if (i >= maxIter) break;
 
-            // Burning Ship: z_{n+1} = (|Re(z)| + i|Im(z)|)^2 + c
-            // DS abs: negate both components if hi < 0
             vec2 ax = (zx.x >= 0.0) ? zx : vec2(-zx.x, -zx.y);
             vec2 ay = (zy.x >= 0.0) ? zy : vec2(-zy.x, -zy.y);
 
-            // |z|² = (|ax|)², (|ay|)² using dsSqr
             vec2 axSqr = dsSqr(ax);
             vec2 aySqr = dsSqr(ay);
-
-            // (ax + i*ay)² = (ax² - ay²) + 2i·ax·ay
             vec2 realPart = dsSub(axSqr, aySqr);
             vec2 zProd = dsMul(ax, ay);
-            vec2 imagPart = dsAdd(zProd, zProd);  // 2·ax·ay
+            vec2 imagPart = dsAdd(zProd, zProd);
 
             vec2 nx = dsAdd(realPart, c_x);
             vec2 ny = dsAdd(imagPart, c_y);
@@ -53,14 +46,12 @@ precision highp float;
             zx = nx;
             zy = ny;
 
-            // Magnitude check: use hi component only
             float mag2 = (zx.x + zx.y) * (zx.x + zx.y) + (zy.x + zy.y) * (zy.x + zy.y);
             if (mag2 > 256.0) break;
 
             iter++;
         }
 
-        // Debug mode: output hi/lo values as colors
         if (uDebugMode == 1) {
             vec2 centerDist = abs(uv - 0.5);
             bool isCenter = (centerDist.x < 0.02) && (centerDist.y < 0.02);
@@ -70,11 +61,6 @@ precision highp float;
                 float cXL = (log2(max(abs(c_x.y), 1e-30)) + 40.0) / 80.0 * (c_x.y >= 0.0 ? 1.0 : 0.0);
                 float cYH = (log2(max(abs(c_y.x), 1e-30)) + 40.0) / 80.0 * (c_y.x >= 0.0 ? 1.0 : 0.0);
                 gl_FragColor = vec4(cXH, cXL, cYH, 1.0);
-            } else if ((centerDist.x > 0.3) && (centerDist.y > 0.3)) {
-                float zxH = (log2(max(abs(zx.x), 1e-30)) + 40.0) / 80.0 * (zx.x >= 0.0 ? 1.0 : 0.0);
-                float zxL = (log2(max(abs(zx.y), 1e-30)) + 40.0) / 80.0 * (zx.y >= 0.0 ? 1.0 : 0.0);
-                float zyH = (log2(max(abs(zy.x), 1e-30)) + 40.0) / 80.0 * (zy.x >= 0.0 ? 1.0 : 0.0);
-                gl_FragColor = vec4(zxH, zxL, zyH, 1.0);
             } else {
                 gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
             }
@@ -82,8 +68,7 @@ precision highp float;
         }
 
         if (iter == maxIter) {
-            float debugBright = clamp(log2(max(abs(c_x.y), 1e-30)) / 20.0 + 0.5, 0.0, 1.0);
-            gl_FragColor = vec4(debugBright * 0.3, debugBright * 0.5, debugBright * 0.7, 1.0);
+            gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
         } else {
             float mag2 = (zx.x + zx.y) * (zx.x + zx.y) + (zy.x + zy.y) * (zy.x + zy.y);
             float smoothVal = float(iter) + 1.0 - log2(max(mag2, 1e-20));
