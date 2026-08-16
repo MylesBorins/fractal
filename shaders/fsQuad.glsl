@@ -77,23 +77,14 @@ void main() {
     // Also log exact values to console via canvas readback
     if (uDebugMode == 1) {
         vec2 centerDist = abs(uv - 0.5);
-        if (centerDist.x < 0.02 && centerDist.y < 0.02) {
-            // Log to console: c_x.hi, c_x.lo, c_y.hi, c_y.lo
-            // Also log zx.x (hi), zx.y (lo) after 10 iterations
-            console.log(`[SHADER] c_x_h=${c_x.x.toExponential(7)} c_x_l=${c_x.y.toExponential(7)}`);
-            console.log(`[SHADER] c_y_h=${c_y.x.toExponential(7)} c_y_l=${c_y.y.toExponential(7)}`);
-            console.log(`[SHADER] zx_h=${zx.x.toExponential(7)} zx_l=${zx.y.toExponential(7)}`);
-            console.log(`[SHADER] zy_h=${zy.x.toExponential(7)} zy_l=${zy.y.toExponential(7)}`);
-            console.log(`[SHADER] uZoomHi=${uZoomHi.toExponential(7)} uZoomLo=${uZoomLo.toExponential(7)}`);
-            console.log(`[SHADER] uOffHi_x=${uOffsetHi.x.toExponential(7)} uOffLo_x=${uOffsetLo.x.toExponential(7)}`);
-        }
-        vec2 centerDist = abs(uv - 0.5);
         bool isCenter = (centerDist.x < 0.02) && (centerDist.y < 0.02);
 
         if (isCenter) {
-            float cXH = (log2(max(abs(c_x.x), 1e-30)) + 40.0) / 80.0 * (c_x.x >= 0.0 ? 1.0 : 0.0);
-            float cXL = (log2(max(abs(c_x.y), 1e-30)) + 40.0) / 80.0 * (c_x.y >= 0.0 ? 1.0 : 0.0);
-            float cYH = (log2(max(abs(c_y.x), 1e-30)) + 40.0) / 80.0 * (c_y.x >= 0.0 ? 1.0 : 0.0);
+            // Map log2 magnitude to [0,1] via offset/2*range: log2(val) ≈ [-40, 40] → [0, 1]
+            // R = c_x.hi magnitude, G = c_x.lo magnitude, B = c_y.hi magnitude
+            float cXH = (log2(max(abs(c_x.x), 1e-30)) + 40.0) / 80.0;
+            float cXL = (log2(max(abs(c_x.y), 1e-30)) + 40.0) / 80.0;
+            float cYH = (log2(max(abs(c_y.x), 1e-30)) + 40.0) / 80.0;
             gl_FragColor = vec4(cXH, cXL, cYH, 1.0);
         } else {
             gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
