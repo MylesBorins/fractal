@@ -26,9 +26,9 @@ Zoom 150 is ~3-4 orders of magnitude below where float32 alone would break down,
 
 Even though this isn't the zoom-150 cause, `Math.fround` splitting is imprecise in a way that matters once you're near float32's ceiling (~zoom 10^5+). Fix now so Phase 2 isn't validated against a flawed input.
 
-- [ ] **1.1 — Replace ad hoc split with a verified two-sum-based split.** `hi = fround(x); lo = x - hi` is *already* exact for a JS double split into float32 hi + float64 lo (this part is fine — the "lose 8 digits" framing in the original doc is slightly off; the real bug is downstream in the GPU adds/multiplies not preserving remainders). Confirm this with a unit test rather than assuming: pick `x = 0.740000019999...`, split, and verify `hi + lo` round-trips to `x` within float64 epsilon.
-- [ ] **1.2 — Add a CPU-side unit test file** (`splitPrecision.test.js` or similar) covering: offset near 0, offset near 1e-10, offset near 1e10, zoom from 1 to 1e15. Assert `hi + lo ≈ original` for each.
-- [ ] **1.3 — Decide fate of `S.minZoom = 1e-30`.** This value implies an intended zoom depth (10^30) that neither float32-split-DS nor the current GPU math can reach (DS ceiling is ~10^12-10^13). Either: (a) lower `minZoom` to something DS can actually deliver, or (b) flag this as the trigger for the Phase 4 perturbation-theory work later. Don't leave it silently promising precision the pipeline can't deliver.
+- [x] **1.1 — Verified (no code change needed).** `splitPrecision.test.js` proves `hi = fround(x); lo = x - hi` round-trips exactly (Sterbenz + representability) — confirms the real bug was downstream GPU ops (Phase 2).
+- [x] **1.2 — `splitPrecision.test.js` added.** Offsets near 0/1e-10/1e10/1e-30, zoom 1…1e15, 200k-sample log-uniform sweep. CPU round-trip exact everywhere; GPU uniform round-trip (lo through float32 uniform) worst rel err **1.8e-15** (bound 2⁻⁴⁸). Run: `node splitPrecision.test.js`.
+- [x] **1.3 — Decision: option (b).** Kept `minZoom = 1e-30` as declared target; documented in `stateStore.js` that the DS ceiling is ~1e12-1e13 (pending 3.2) and 1e-30 requires Phase 4 perturbation theory.
 
 ---
 
