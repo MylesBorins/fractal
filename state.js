@@ -26,13 +26,18 @@ export { canvas, gl };
 
 let _supersampleFBO = null;
 let _supersampleTex = null;
+let _supersampleSize = 0;
 
 export function getSupersampleFBO() { return _supersampleFBO; }
 export function setSupersampleFBO(fbo) { _supersampleFBO = fbo; }
 export function getSupersampleTex() { return _supersampleTex; }
 export function setSupersampleTex(tex) { _supersampleTex = tex; }
+export function getSupersampleSize() { return _supersampleSize; }
 
 export function createSupersampleFBO(w, h) {
+    // Delete old FBO+texture so resize/recreation doesn't leak GPU memory
+    if (_supersampleFBO) gl.deleteFramebuffer(_supersampleFBO);
+    if (_supersampleTex) gl.deleteTexture(_supersampleTex);
     const fbo = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
     const tex = gl.createTexture();
@@ -45,6 +50,7 @@ export function createSupersampleFBO(w, h) {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
     gl.bindTexture(gl.TEXTURE_2D, null);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    _supersampleSize = w * h;
     setSupersampleFBO(fbo);
     setSupersampleTex(tex);
     return { fbo, tex };

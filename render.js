@@ -1,5 +1,5 @@
 import { S } from './stateStore.js';
-import { buffers, perfCtx, getFractalFamily, canvas, gl, resizeCanvasToDisplaySize, createSupersampleFBO, getSupersampleFBO, getSupersampleTex } from './state.js';
+import { buffers, perfCtx, getFractalFamily, canvas, gl, resizeCanvasToDisplaySize, createSupersampleFBO, getSupersampleFBO, getSupersampleTex, getSupersampleSize } from './state.js';
 import { shaderPrograms, getUniformLocations, getBlitProgram, getBlitUniformLocations } from './shaders.js';
 
 function drawScene() {
@@ -76,7 +76,7 @@ function drawSupersampled() {
     const fbh = canvas.height * 2;
 
     // Create FBO if needed
-    if (!getSupersampleFBO() || gl.canvas.width !== fbw || gl.canvas.height !== fbh) {
+    if (!getSupersampleFBO() || getSupersampleSize() !== fbw * fbh) {
         initBlitBuffers();
         createSupersampleFBO(fbw, fbh);
     }
@@ -109,7 +109,7 @@ function drawSupersampled() {
     gl.uniform1f(S.shaderUniforms.iterations, parseFloat(document.getElementById('iterations').value));
     gl.uniform1f(S.shaderUniforms.colorShift, parseFloat(document.getElementById('color-shift').value));
     if (S.shaderUniforms.fractalType) gl.uniform1i(S.shaderUniforms.fractalType, ft);
-    if (S.shaderUniforms.debugMode) gl.uniform1i(S.shaderUniforms.debugMode, 0);
+    if (S.shaderUniforms.debugMode) gl.uniform1i(S.shaderUniforms.debugMode, S.debugMode);
     if (S.shaderUniforms.superSample) gl.uniform1i(S.shaderUniforms.superSample, 1);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
