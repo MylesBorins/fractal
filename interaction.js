@@ -325,6 +325,7 @@ document.getElementById('toggle-color-cycle').classList.toggle('active', S.isCol
 document.getElementById('toggle-iter-osc').classList.toggle('active', S.isIterOscillating);
 document.getElementById('toggle-debug-color').classList.toggle('active', S.debugMode !== 0);
 document.getElementById('toggle-supersample').classList.toggle('active', S.supersample);
+document.getElementById('toggle-supersample').textContent = S.supersample ? 'On' : 'Off';
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'h' || e.key === 'H') {
