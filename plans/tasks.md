@@ -16,7 +16,7 @@
 - **Extension**: Created `task-dispatch` sub-agent extension in pi-agent-extensions
 
 ### ✅ Phase 1: Deep Zoom Precision Fix
-- **Adaptive exponent-based splitting** — replaced `Math.fround(x)` with `splitFloat(x)` that splits by nearest power-of-2, avoiding underflow at extreme zooms (10⁻³⁰+)
+- **CPU split verified exact** — `render.js` uses `hi = fround(x); lo = x - hi` (the earlier `splitFloat` claim in this doc was inaccurate — no such function was ever in the code). Verified by `splitPrecision.test.js`: hi+lo round-trips x exactly for all tested values (Sterbenz + representability)
 - **Shader low-low cross-terms** — added `zx_l * zx_l`, `zy_l * zy_l`, and `2.0 * zx_l * zy_l` to all DS squaring operations (quad, burning ship, sinusoidal)
 - **Sinusoidal Taylor expansion** — replaced naive `nx_l = c_x_l` with first-order Taylor derivatives: `sin(x+dx) ≈ sin(x) + dx·cos(x)`, `sinh(y+dy) ≈ sinh(y) + dy·cosh(y)`
 - **Smooth coloring magnitude** — added `+ zx_l * zx_l + zy_l * zy_l` to all three shader magnitude calculations
@@ -43,12 +43,19 @@
 - **0.4 — Log hi/lo values**: 🔄 Added debug color mode (toggle button) + console.log of oHi/oLo/zHi/zLo/c_x_h/c_x_l
 - **0.5 — Conclusion checkpoint**: Pending browser testing results
 
-### 7. Zoom Precision Spec — Phase 1 (Not Started)
-- Split precision unit tests
-- S.minZoom decision (1e-30 is unrealistic for current DS pipeline)
+### 7. Zoom Precision Spec — Phase 1 (✅ Complete)
+- **1.1 — Split exactness confirmed by test, not assumption** — `hi = fround(x); lo = x - hi` round-trips exactly in float64 (Sterbenz: hi/2 ≤ x ≤ 2hi ⇒ x−hi exact; hi+lo = x representable ⇒ sum exact). No code change needed
+- **1.2 — `splitPrecision.test.js` added** — offsets near 0/1e-10/1e10/1e-30 + zoom 1…1e15 + 200k-sample log-uniform sweep. CPU round-trip exact everywhere; GPU uniform round-trip (lo passes through float32 uniform) worst rel err **1.8e-15** (bound 2⁻⁴⁸ ≈ 3.6e-15). Run: `node splitPrecision.test.js`
+- **1.3 — minZoom decision: option (b)** — keep `S.minZoom = 1e-30` as declared target; documented in `stateStore.js` that the DS pipeline ceiling is ~1e12-1e13 (pending Phase 3 measurement) and 1e-30 requires Phase 4 perturbation theory. No silent promise
 
-### 8. Zoom Precision Spec — Phase 2 (Not Started)
-- GPU error-free DS arithmetic (twoSum, twoProd, dsAdd, dsMul, dsSqr)
+### 8. Zoom Precision Spec — Phase 2 (✅ Complete — needs browser validation)
+- **Error-free transforms** — `dsMath.glsl` rewritten: `twoSum` (Knuth), `split` (Veltkamp F=8193), `twoProd` (Dekker); `dsAdd/dsSub/dsMul/dsSqr/dsMulScalar` all capture rounding error in the lo channel
+- **2.4 fma probe resolved** — GLSL ES 1.00 / WebGL 1 has no `fma()`, split-based `twoProd` is the only path; shipped
+- **2.9 c-construction fixed** — `dsMulScalar` redefined error-free (`twoProd(s, d.hi)` + cross term); call sites in all three shaders unchanged
+- **2.11 lo·lo drop verified** — |lo| ≤ ~2⁻²⁵|hi| ⇒ lo² ≤ 2⁻⁵⁰ relative, sub-float32-ULP; safe
+- **Zero shader call-site changes** — same function signatures; fsQuad/fsBS/fsSin automatically get error-free iteration
+- **Residual risk (untestable headless)** — assumes driver honors IEEE single semantics; browser check: debug mode lo channel nonzero + zoom-150 regression (3.4)
+- **⚠️ Perf (3.3 pending)** — inner loop ~3.5× ALU (~60 vs ~17 ops/iter); if fps unacceptable, add uniform `uPreciseMode` hybrid (cheap DS below zoom threshold, error-free above)
 
 ### 9. Zoom Precision Spec — Phase 3 (Not Started)
 - Validation against reference images and precision ceiling testing
