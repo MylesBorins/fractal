@@ -41,6 +41,11 @@ function loadShaderSources() {
 async function init() {
     // Inject shader sources into hidden <script> blocks for initShaderPrograms()
     const sources = await loadShaderSources();
+    const dsFixed = sources[0].includes('s - (s - a)');
+    console.log('%cdsMath pipeline: ' + (dsFixed
+        ? 'FIXED split (Veltkamp s-(s-a)) — if still blocky, suspect GPU driver'
+        : '⚠️ STALE split (s-a) — page served old shader source, hard-reload again'),
+        dsFixed ? 'color:#4f8;font:bold' : 'color:#f44;font:bold');
     const shaderContainers = document.querySelectorAll('script[type="shader-source"]');
     shaderContainers.forEach((el, i) => {
         el.textContent = sources[i];
