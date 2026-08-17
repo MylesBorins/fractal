@@ -78,8 +78,20 @@ void main() {
     if (uDebugMode == 1) {
         vec2 centerDist = abs(uv - 0.5);
         bool isCenter = (centerDist.x < 0.02) && (centerDist.y < 0.02);
+        // IEEE-single self-test patch, just left of center:
+        //   t1 = 1 + 2^-20: exact in 24-bit mantissa, rounds to 1.0 in 11-bit (mediump)
+        //   split(uOffsetHi.x) must reconstruct exactly (Dekker/Veltkamp)
+        bool isSelfTest = (uv.x > 0.42 && uv.x < 0.48) && (centerDist.y < 0.02);
 
-        if (isCenter) {
+        if (isSelfTest) {
+            bool okAdd = (1.0 + 1.0 / 1048576.0) > 1.0;
+            vec2 sp = split(uOffsetHi.x);
+            bool okSplit = (sp.x + sp.y) == uOffsetHi.x;
+            gl_FragColor = (okAdd && okSplit) ? vec4(0.0, 1.0, 0.0, 1.0)  // both pass: true IEEE single
+                          : okAdd             ? vec4(1.0, 1.0, 0.0, 1.0)  // yellow: add ok, split broken
+                          : okSplit           ? vec4(0.0, 1.0, 1.0, 1.0)  // cyan: split ok, add broken
+                          :                    vec4(1.0, 0.0, 0.0, 1.0);  // red: driver degraded
+        } else if (isCenter) {
             // Map log2 magnitude to [0,1] via offset/2*range: log2(val) ≈ [-40, 40] → [0, 1]
             // R = c_x.hi magnitude, G = c_x.lo magnitude, B = c_y.hi magnitude
             float cXH = (log2(max(abs(c_x.x), 1e-30)) + 40.0) / 80.0;
