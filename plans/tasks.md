@@ -55,6 +55,7 @@
 - **2.11 lo·lo drop verified** — |lo| ≤ ~2⁻²⁵|hi| ⇒ lo² ≤ 2⁻⁵⁰ relative, sub-float32-ULP; safe
 - **Zero shader call-site changes** — same function signatures; fsQuad/fsBS/fsSin automatically get error-free iteration
 - **Residual risk (untestable headless)** — assumes driver honors IEEE single semantics; browser check: debug mode lo channel nonzero + zoom-150 regression (3.4)
+- **🔴 CRITICAL BUG FOUND + FIXED (2026-07-09)** — `split()` used `hi = s - a` (yields ~8192a, the WRONG half) instead of Veltkamp's `hi = s - (s - a)`. `twoProd`'s error term became garbage (cancellation of 2^26·ab terms) → lo channel of every multiplication destroyed → the entire DS pipeline ran at float32 + O(2⁻²⁴) noise/step. Browser symptom: ~15px blocky squares at 1e-5 zoom. Caught by `dsMath.test.js` (Node `Math.fround` emulation of the exact GLSL pipeline — 200k-case exactness checks + user-scene orbit tracking); one-line shader fix; post-fix: twoProd exact 200k/200k, c-construction worst err 3.2e-15, 60-iter DS orbit diverges 0.0006px from exact float64. **Lesson: Phase 2's "verified by inspection" was the gap — the fround-emulation test now guards the pipeline**
 - **⚠️ Perf (3.3 pending)** — inner loop ~3.5× ALU (~60 vs ~17 ops/iter); if fps unacceptable, add uniform `uPreciseMode` hybrid (cheap DS below zoom threshold, error-free above)
 
 ### 9. Zoom Precision Spec — Phase 3 (Not Started)

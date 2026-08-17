@@ -23,12 +23,14 @@ vec2 twoSum(float a, float b) {
     return vec2(s, e);
 }
 
-// Split (Veltkamp): a = hi + lo exactly; each half carries ~12 mantissa bits.
-// F = 2^13 + 1 is exact for 24-bit IEEE single.
+// Split (Veltkamp): a = hi + lo exactly; hi carries the top ~13 mantissa bits,
+// lo the bottom ~11. F = 2^13 + 1 is exact for 24-bit IEEE single.
+// NOTE: hi = s - (s - a), NOT s - a — the inner subtraction must happen first;
+// "s - a" alone yields ~8192*a (the wrong half) and destroys twoProd exactness.
 vec2 split(float a) {
     const float F = 8193.0;
     float s = F * a;
-    float hi = s - a;
+    float hi = s - (s - a);
     float lo = a - hi;
     return vec2(hi, lo);
 }
