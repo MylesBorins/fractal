@@ -60,6 +60,14 @@
 ### 9. Zoom Precision Spec — Phase 3 (Not Started)
 - Validation against reference images and precision ceiling testing
 
+### 10. Phase 4 — Perturbation Theory (Spec Written, v1 Implementation Starting)
+- **Spec**: `plans/phase4_perturbation_spec.md` — exact delta recurrence `δ_{n+1} = 2w_n·δ_n + δ_n² + δ_c`, orbit center = view center (A≡0, zero new uniforms), GPU DS orbit + DS delta, glitch safety net, auto-switch at zoom<1e-10 (hysteresis 3e-10)
+- **v1 scope**: Mandelbrot/Julia/Tricorn only; extends working range ~1e-11 → ~1e-15 (double navigation limit), no bignum needed
+- **v1.5**: 256-bit BigInt fixed-point for typed/preset coordinates (parse decimal strings, not parseFloat) → ~1e-24
+- **v2**: glitch rebase + series approximation + bignum orbit via RGBA32F texture (WebGL2) → 1e-30
+- **Files**: `shaders/fsPerturb.glsl` (new), `perturb.js` (mode selection), `perturb.test.js` (node), wiring in shaders.js/render.js/stateStore.js/index.html
+- **Blocked on**: Phase 3 browser validation of base DS path (must confirm quad path is clean before comparing perturb output)
+
 ---
 
 ### 1. Julia Set - ✅ FIXED
