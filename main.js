@@ -4,11 +4,13 @@ import './shaders.js';
 import './render.js';
 import './interaction.js';
 
-import { gl, canvas } from './state.js';
+import { gl, canvas, IS_WEBGL2_FLAG } from './state.js';
 import { initShaderPrograms, shaderPrograms, getUniformLocations } from './shaders.js';
+import { createRefTexture } from './reference.js';
 import { S } from './stateStore.js';
 import { resizeCanvasToDisplaySize } from './state.js';
 import { render } from './render.js';
+import { updatePerturbToggle } from './interaction.js';
 
 // Load shader sources with DS math module injected
 // All shaders are GLSL ES 1.00 — dsMath uses split-based math (no fma)
@@ -35,6 +37,12 @@ function loadShaderSources() {
                 precisionPrefix + mathSource + sinSource
             );
         }),
+        fetch(`shaders/fsPerturb.glsl?t=${t}`).then(r => r.text()).then(perturbSource => {
+            perturbSource = perturbSource.replace('precision highp float;', '');
+            return fetch(`shaders/dsMath.glsl?t=${t}`).then(r => r.text()).then(mathSource =>
+                precisionPrefix + mathSource + perturbSource
+            );
+        }),
     ]);
 }
 
@@ -52,11 +60,17 @@ async function init() {
     });
 
     initShaderPrograms(gl);
+    S.perturbSupported = !!createRefTexture(gl, IS_WEBGL2_FLAG);
+    console.log(S.perturbSupported
+        ? '✅ Perturb mode ready (RGBA32F ref orbit)'
+        : '⚠️ Perturb mode unavailable (no float-texture support)');
+    updatePerturbToggle();
     initShader();
     resizeCanvasToDisplaySize();
     requestAnimationFrame(render);
 }
 
+console.log('FRAC-BUILD v4-intref');
 function initShader() {
     console.log('initShader: shaderPrograms["quad"] =', shaderPrograms['quad']);
     S.shaderProgram = shaderPrograms['quad'];

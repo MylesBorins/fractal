@@ -1,10 +1,28 @@
 import { S } from './stateStore.js';
-import { buffers, perfCtx, getFractalFamily, canvas, gl, resizeCanvasToDisplaySize, createSupersampleFBO, getSupersampleFBO, getSupersampleTex, getSupersampleSize } from './state.js';
+import { buffers, perfCtx, getFractalFamily, canvas, gl, resizeCanvasToDisplaySize, createSupersampleFBO, getSupersampleFBO, getSupersampleTex, getSupersampleSize, IS_WEBGL2_FLAG } from './state.js';
 import { shaderPrograms, getUniformLocations, getBlitProgram, getBlitUniformLocations } from './shaders.js';
+import { selectFamily } from './perturb.js';
+import { uploadRefOrbit } from './reference.js';
+
+// Upload the CPU float64 reference orbit for the perturb family (no-op +
+// false when float textures are unsupported).
+function bindRefOrbit(gl, ft) {
+    const cRef = uploadRefOrbit(gl, IS_WEBGL2_FLAG, ft, S.offset.x, S.offset.y);
+    if (cRef) {
+        gl.uniform1i(S.shaderUniforms.refOrbit, 0);
+        // c_ref is NOT necessarily the view center (interior reference):
+        // pass it so the shader computes delta_c = c - c_ref correctly.
+        const cr = Math.fround(cRef[0]), ci = Math.fround(cRef[1]);
+        gl.uniform2f(S.shaderUniforms.refCx, cr, Math.fround(cRef[0] - cr));
+        gl.uniform2f(S.shaderUniforms.refCy, ci, Math.fround(cRef[1] - ci));
+        return true;
+    }
+    return false;
+}
 
 function drawScene() {
     const ft = parseInt(document.getElementById('fractal-type').value);
-    const tf = getFractalFamily(ft);
+    const tf = selectFamily(ft, S.zoom, S.perturbMode, S.shaderFamily, S.perturbSupported);
     if (tf !== S.shaderFamily) {
         S.shaderFamily = tf;
         S.shaderProgram = shaderPrograms[tf];
@@ -27,6 +45,28 @@ function drawScene() {
     gl.uniform1f(S.shaderUniforms.colorShift, parseFloat(document.getElementById('color-shift').value));
     if (S.shaderUniforms.fractalType) {
         gl.uniform1i(S.shaderUniforms.fractalType, ft);
+    }
+    if (tf === 'perturb' && !bindRefOrbit(gl, ft)) {
+        // Float textures unavailable: this frame falls back to full DS.
+        S.shaderFamily = getFractalFamily(ft);
+        S.shaderProgram = shaderPrograms[S.shaderFamily];
+        S.shaderUniforms = getUniformLocations(gl, S.shaderProgram);
+        gl.useProgram(S.shaderProgram);
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
+        const aLoc = gl.getAttribLocation(S.shaderProgram, 'aVertexPosition');
+        gl.vertexAttribPointer(aLoc, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(aLoc);
+        gl.uniform2f(S.shaderUniforms.resolution, canvas.width, canvas.height);
+        gl.uniform2f(S.shaderUniforms.offsetHi, oHi[0], oHi[1]);
+        gl.uniform2f(S.shaderUniforms.offsetLo, oLo[0], oLo[1]);
+        gl.uniform1f(S.shaderUniforms.zoomHi, zHi);
+        gl.uniform1f(S.shaderUniforms.zoomLo, zLo);
+        gl.uniform1f(S.shaderUniforms.iterations, parseFloat(document.getElementById('iterations').value));
+        gl.uniform1f(S.shaderUniforms.colorShift, parseFloat(document.getElementById('color-shift').value));
+        if (S.shaderUniforms.fractalType) gl.uniform1i(S.shaderUniforms.fractalType, ft);
+        if (S.shaderUniforms.debugMode) gl.uniform1i(S.shaderUniforms.debugMode, S.debugMode);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        return;
     }
     if (S.shaderUniforms.debugMode) {
         gl.uniform1i(S.shaderUniforms.debugMode, S.debugMode);
@@ -74,6 +114,7 @@ function initBlitBuffers() {
 function drawSupersampled() {
     const fbw = canvas.width * 2;
     const fbh = canvas.height * 2;
+    let fboDrawn = false;
 
     // Create FBO if needed
     if (!getSupersampleFBO() || getSupersampleSize() !== fbw * fbh) {
@@ -87,7 +128,7 @@ function drawSupersampled() {
     gl.viewport(0, 0, fbw, fbh);
 
     const ft = parseInt(document.getElementById('fractal-type').value);
-    const tf = getFractalFamily(ft);
+    const tf = selectFamily(ft, S.zoom, S.perturbMode, S.shaderFamily, S.perturbSupported);
     if (tf !== S.shaderFamily) {
         S.shaderFamily = tf;
         S.shaderProgram = shaderPrograms[tf];
@@ -109,9 +150,38 @@ function drawSupersampled() {
     gl.uniform1f(S.shaderUniforms.iterations, parseFloat(document.getElementById('iterations').value));
     gl.uniform1f(S.shaderUniforms.colorShift, parseFloat(document.getElementById('color-shift').value));
     if (S.shaderUniforms.fractalType) gl.uniform1i(S.shaderUniforms.fractalType, ft);
-    if (S.shaderUniforms.debugMode) gl.uniform1i(S.shaderUniforms.debugMode, S.debugMode);
-    if (S.shaderUniforms.superSample) gl.uniform1i(S.shaderUniforms.superSample, 1);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    if (tf === 'perturb' && !bindRefOrbit(gl, ft)) {
+        // Float textures unavailable: render to FBO with the full DS shader
+        // instead so the blit pass still produces a valid frame.
+        const bf = getFractalFamily(ft);
+        S.shaderFamily = bf;
+        S.shaderProgram = shaderPrograms[bf];
+        S.shaderUniforms = getUniformLocations(gl, S.shaderProgram);
+        gl.useProgram(S.shaderProgram);
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffers.position);
+        const aLoc = gl.getAttribLocation(S.shaderProgram, 'aVertexPosition');
+        gl.vertexAttribPointer(aLoc, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(aLoc);
+        gl.uniform2f(S.shaderUniforms.resolution, fbw, fbh);
+        const oHi = [Math.fround(S.offset.x), Math.fround(S.offset.y)];
+        const oLo = [S.offset.x - oHi[0], S.offset.y - oHi[1]];
+        gl.uniform2f(S.shaderUniforms.offsetHi, oHi[0], oHi[1]);
+        gl.uniform2f(S.shaderUniforms.offsetLo, oLo[0], oLo[1]);
+        const zHi = Math.fround(S.zoom);
+        gl.uniform1f(S.shaderUniforms.zoomHi, zHi);
+        gl.uniform1f(S.shaderUniforms.zoomLo, S.zoom - zHi);
+        gl.uniform1f(S.shaderUniforms.iterations, parseFloat(document.getElementById('iterations').value));
+        gl.uniform1f(S.shaderUniforms.colorShift, parseFloat(document.getElementById('color-shift').value));
+        if (S.shaderUniforms.fractalType) gl.uniform1i(S.shaderUniforms.fractalType, ft);
+        if (S.shaderUniforms.debugMode) gl.uniform1i(S.shaderUniforms.debugMode, S.debugMode);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        // FBO is done; skip the normal draw and fall through to blit.
+        fboDrawn = true;
+    } else if (S.shaderUniforms.debugMode) gl.uniform1i(S.shaderUniforms.debugMode, S.debugMode);
+    if (!fboDrawn) {
+        if (S.shaderUniforms.superSample) gl.uniform1i(S.shaderUniforms.superSample, 1);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
 
     // Pass 2: blit FBO texture to screen with linear filtering (downsamples 4:1)
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -133,7 +203,7 @@ function drawSupersampled() {
 function drawPerfOverlay() {
     const zDepth = -Math.log10(S.zoom);
     const iterVal = parseFloat(document.getElementById('iterations').value);
-    const fNames = { quad: 'z\u00b2+c', bs: 'Burning Ship', sin: 'Sinusoidal' };
+    const fNames = { quad: 'z\u00b2+c', perturb: 'z\u00b2+c\u00b7\u03b4', bs: 'Burning Ship', sin: 'Sinusoidal' };
     const curType = parseInt(document.getElementById('fractal-type').value);
     const tNames = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Sinusoidal'];
     const opsP = S.shaderFamily === 'quad' ? 16 : S.shaderFamily === 'bs' ? 18 : 24;

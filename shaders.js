@@ -65,6 +65,7 @@ export function initShaderPrograms(gl) {
     shaderPrograms['quad'] = createShaderProgram(gl, document.getElementById('shader-src-quad').textContent);
     shaderPrograms['bs'] = createShaderProgram(gl, document.getElementById('shader-src-bs').textContent);
     shaderPrograms['sin'] = createShaderProgram(gl, document.getElementById('shader-src-sin').textContent);
+    shaderPrograms['perturb'] = createShaderProgram(gl, document.getElementById('shader-src-perturb').textContent);
 
     for (const [name, prog] of Object.entries(shaderPrograms)) {
         if (!prog) {
@@ -104,5 +105,8 @@ export function getUniformLocations(gl, program) {
         fractalType: gl.getUniformLocation(program, 'uFractalType'),
         debugMode: gl.getUniformLocation(program, 'uDebugMode'),
         superSample: gl.getUniformLocation(program, 'uSuperSample'),
+        refOrbit: gl.getUniformLocation(program, 'uRefOrbit'),
+        refCx: gl.getUniformLocation(program, 'uRefCx'),
+        refCy: gl.getUniformLocation(program, 'uRefCy'),
     };
 }

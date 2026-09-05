@@ -57,6 +57,29 @@ document.getElementById('toggle-supersample').addEventListener('click', (e) => {
     e.target.classList.toggle('active', S.supersample);
 });
 
+// Perturb mode: cycles On -> Off -> On (Phase 4 v2). The shader's sentinel
+// fallback (full DS orbit when the reference has escaped) makes perturb
+// correct at any zoom, so the old Auto/Force zoom-threshold modes collapsed
+// into a single 'auto' (On) state. Legacy 'force' is normalized to 'auto'.
+document.getElementById('toggle-perturb').addEventListener('click', (e) => {
+    if (!S.perturbSupported) return;
+    const modes = ['auto', 'off'];
+    const next = modes[(modes.indexOf(S.perturbMode) + 1) % modes.length];
+    S.perturbMode = next;
+    updatePerturbToggle();
+});
+
+// Enabled once main.js confirms float-texture support (after shader init).
+export function updatePerturbToggle() {
+    const btn = document.getElementById('toggle-perturb');
+    if (!btn) return;
+    if (S.perturbMode === 'force') S.perturbMode = 'auto'; // legacy alias
+    const labels = { auto: 'On', off: 'Off' };
+    btn.disabled = !S.perturbSupported;
+    btn.textContent = S.perturbSupported ? labels[S.perturbMode] : 'N/A';
+    btn.classList.toggle('active', S.perturbSupported && S.perturbMode === 'auto');
+}
+
 document.getElementById('osc-min').addEventListener('input', (e) => {
     S.iterOscillateMin = parseInt(e.target.value);
     document.getElementById('osc-min-val').textContent = S.iterOscillateMin;
@@ -78,7 +101,7 @@ document.getElementById('copy-stats').addEventListener('click', () => {
     const iterVal = parseFloat(document.getElementById('iterations').value);
     const curType = parseInt(document.getElementById('fractal-type').value);
     const tNames = ['Mandelbrot', 'Julia', 'Burning Ship', 'Tricorn', 'Sinusoidal'];
-    const fNames = { quad: 'z²+c', bs: 'Burning Ship', sin: 'Sinusoidal' };
+    const fNames = { quad: 'z²+c', perturb: 'z²+c·δ', bs: 'Burning Ship', sin: 'Sinusoidal' };
     const stats = `${tNames[curType]} | Zoom: ${S.zoom.toExponential(3)} (10^${zDepth.toFixed(1)}) | Iter: ${iterVal} | FPS: ${S.avgFPS.toFixed(1)} | Shader: ${fNames[S.shaderFamily]} | Offset: (${S.offset.x.toExponential(3)}, ${S.offset.y.toExponential(3)})`;
     navigator.clipboard.writeText(stats).then(() => {
         const btn = document.getElementById('copy-stats');
@@ -326,6 +349,7 @@ document.getElementById('toggle-iter-osc').classList.toggle('active', S.isIterOs
 document.getElementById('toggle-debug-color').classList.toggle('active', S.debugMode !== 0);
 document.getElementById('toggle-supersample').classList.toggle('active', S.supersample);
 document.getElementById('toggle-supersample').textContent = S.supersample ? 'On' : 'Off';
+updatePerturbToggle();
 
 document.addEventListener('keydown', (e) => {
     if (e.key === 'h' || e.key === 'H') {

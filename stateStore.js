@@ -30,6 +30,8 @@ export const S = {
     perfDisplayTimer: 0,
     MAX_FRAME_HISTORY: 30,
     shaderFamily: 'quad',
+    perturbMode: 'auto',
+    perturbSupported: false,
     shaderProgram: null,
     shaderUniforms: null,
     debugMode: 0, // 0=normal, 1=debug color

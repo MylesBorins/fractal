@@ -1,67 +1,86 @@
-# Phase 4 — Perturbation Theory (deep zoom to 1e-30)
+# Phase 4 — Perturbation Theory (deep zoom)
 
-**Status:** v1 scoped, starting implementation. Supersedes the stretch note in `zoom_precision_spec.md` §Phase 4.
+**Status:** v2 implemented + CPU-validated (node emulation of the exact shader pipeline, 7 scenes + interior-reference + sentinel-net + boundary-view tests all pass, 33/33). Auto mode simplified to On/Off (zoom threshold/hysteresis removed). **v4 interior reference (fixes the residual blockiness at mid zooms):** c_ref is now a nearby BOUNDED point, not the view center — a center outside the set made the whole view collapse onto the reference's escape envelope (flat band) plus sentinel-fallback patchwork (blocky; "zooming deeper fixed it" because deeper centers were interior). `selectRefCenter` does an O(1) full-budget f64 check of the center, else a quantized ring search (cache quantized to 1e-4, ~1 ms worst case) for a bounded point. Browser validation pending (headless Chrome blocked by nono sandbox; see tasks.md §10). Supersedes the stretch note in `zoom_precision_spec.md` §Phase 4 and the v1 architecture in this doc's git history.
 
-**Goal:** make `S.minZoom = 1e-30` deliverable. Phase 2's error-free DS caps at ~1e12–1e13 (pending 3.2): DS precision on |c|~1 is ~7e-15 absolute = one pixel at `zoom ≈ 3.5e-11`. Perturbation moves the precision requirement off |c| and onto the pixel delta δ, whose magnitude scales with zoom.
+**Goal:** extend the usable zoom of Mandelbrot/Julia/Tricorn from the DS ceiling (~1e-11) to ~1e-15 (aiming limit), with the 1e-30 path staged (v1.5 typed coordinates, v3 bignum orbit).
 
 ## 1. Math
 
-Reference orbit `w` at `c_ref`; pixel `c = c_ref + δ_c`, `z = w + δ`, `z_0 = 0` (Mandelbrot):
+Reference orbit `w` at `c_ref`; pixel `c = c_ref + δ_c`, `z = w + δ`:
 
 ```
-δ_{n+1} = z_{n+1} − w_{n+1} = (w_n+δ_n)² + c_ref + δ_c − w_n² − c_ref
-        = 2·w_n·δ_n + δ_n² + δ_c        (EXACT, δ_0 = 0)
+z_{n+1} − w_{n+1} = (w_n+δ_n)² + c − (w_n² + c_ref)
+                  = 2·w_n·δ_n + δ_n² + δ_c          (EXACT)
 ```
 
-**Key property:** all error in δ_n is *relative to δ*, not to |c|~1. Per-step error ~2⁻⁴⁸·|δ_n| (DS ops); worst-case (parabolic reference, N=2000) accumulates to ~1e-8 of a pixel, independent of zoom depth. That is the whole win.
+**δ_c is added at EVERY step** (earlier draft said first-step-only — wrong; the cusp test at (0.25,0) proves the per-step form). Linear term doubled: `Re(2wδ) = 2(wR·dR − wI·dI)`, `Im(2wδ) = 2(wR·dI + wI·dR)`.
 
-Escape test uses `z_n = w_n + δ_n` directly (exact sum in DS).
+**Key property:** error in δ_n is relative to δ, not |c|~1. Per-step DS residual ~2⁻⁴⁸·|δ_n| — sub-pixel at all v2 zooms, independent of zoom depth.
 
 ### Applicability by fractal type
 
-| Type | Delta recurrence | v1? |
-|---|---|---|
-| 0 Mandelbrot | `2w_n·δ_n + δ_n² + δ_c`, δ_0 = 0, w_0 = 0 | yes |
-| 1 Julia (fixed c_j) | `2w_n·δ_n + δ_n²`, δ_0 = δ_c, w_0 = c_ref | yes |
-| 3 Tricorn | `2·conj(w_n)·conj(δ_n) + conj(δ_n)² + δ_c` | yes |
-| 2 Burning Ship | abs() is non-holomorphic; piecewise perturbation with sign tracking | v2 |
-| 4 Sinusoidal | sin expansion is a series in δ, not a closed form | v2 |
+| Type | Reference orbit w | Δ recurrence | v2? |
+|---|---|---|---|
+| 0 Mandelbrot | view center, w_0 = 0 | `2w_nδ_n + δ_n² + δ_c`, δ_0 = 0 | yes |
+| 1 Julia | fixed point P of z²+c_j (w_n ≡ P, constant) | `2Pδ_n + δ_n²`, δ_0 = c − P, **no δ_c** (c_j cancels) | yes |
+| 3 Tricorn | view center, w_0 = 0 | `dR' = baseR + dcR`, `dI' = dcI − baseI` where `base = δ² + 2wδ` (conj of full δ² + 2conj(w)conj(δ) + conj(δ_c) reduced to the form the test needs — verified against conj-of-full-orbit, 0/121) | yes |
+| 2 Burning Ship | abs() non-holomorphic; piecewise with sign tracking | — | v3 |
+| 4 Sinusoidal | sin is a series in δ, no closed form | — | v3 |
 
-## 2. v1 architecture (no bignum)
+The Tricorn row is subtle: `conj(z)² = conj(z²)` makes the full-orbit transform clean, but the δ-form `δ² + 2wδ` must have its imaginary part negated *after* the δ² term (δ²'s own conjugate is conj(δ)² = dR² − dI² − 2i·dR·dI). CPU emulation mirrors the shader exactly and matches float64 ground truth to 0/121 at 1e-12.
 
-- **Orbit center = current view center, always** (`c_ref = S.offset`). This is implicit per-frame auto-rebasing: `A = offset − c_ref ≡ 0`, `δ_c = fx·zoom`, and the perturbation shader consumes **exactly quad's uniform set** (uResolution, uOffsetHi/Lo, uZoomHi/Lo, uIterations, uColorShift, uFractalType, uDebugMode, uSuperSample). Zero new uniforms.
-- **GPU computes the reference orbit in DS** (w_0=0; `w_{n+1} = dsSqr(w) + c_ref`). No per-frame bignum orbit, no texture upload. DS orbit absolute error ~7e-12 at |w|~1 feeds the delta recurrence *relative* to δ (term `2εw·δ_n`), so it stays sub-pixel across all v1 zooms.
-- **Delta loop in DS:** `δ ← dsAdd(dsSqr(δ), dsMul(2w, δ))` (+`δ_c` only at n=0 for Mandelbrot/Tricorn — fold δ_c into δ_0, since δ_0 = δ_c after the first step... note: δ_0=0, δ_1 = 2w_0·0 + 0 + δ_c = δ_c — so add δ_c only on first iteration).
-- **Glitch safety net:** if |δ_n| > 1.0 mid-loop (shouldn't happen in v1 range), break and re-run the full DS fallback loop (duplicated in-shader, rare path). Real glitch/rebase machinery is v2.
-- **Mode switch (CPU):** `zoom < 1e-10 → perturb` (hysteresis: back to quad above 3e-10); only for fractalType ∈ {0,1,3}; types {2,4} stay on their DS shaders. Threshold is well above the DS ceiling, so the switch point itself is invisible.
-- **v1 ceiling:** double *navigation* limit — offset ulp ~1e-16 = one pixel at zoom ~1e-15 (rendering at a fixed offset stays exact; aiming quantizes). So v1: 1e-11 → ~1e-15, i.e. 2+ more decades for free.
+## 2. v2 architecture (as built)
 
-## 3. Staging toward 1e-30
+- **CPU float64 reference orbit** (2000 f64 iters/frame — negligible) uploaded as **RGBA32F 2001×1** texture, texel n = (wr_hi, wr_lo, wi_hi, wi_lo) f32 pairs (2⁻⁴⁸ absolute = 0.001 px at 1e-12). Single-f32 storage is NOT viable (2⁻²⁴ abs = 100,000 px at 1e-12).
+- **GPU DS δ recurrence** per pixel; per-family init as in the table above. Julia reads P from texel 0 (no new uniform). MB/T: `δ_c = c − c_ref` computed in DS, where `c_ref` is the interior reference center passed as `uRefCx`/`uRefCy` (f32 hi/lo pairs) — NOT assumed to be the view center.
+- **Escape test** on the reconstructed pixel `z_{i+1} = w_{i+1} + δ_{i+1}`, `|z|² > 256`, same iter convention as fsQuad (loop index i tests z_{i+1}; escape → iter = i).
+- **Why the reference must be f64 (the v1→v2 change):** a GPU/DS reference accumulates ~2⁻⁴⁸/step, chaotically amplified (~2.7×/iter measured at the seahorse) through the ~10³-iter boundary transient, ejecting the orbit off its attractor — it escaped at iter 1052 where the exact (f64) orbit never escapes in 3000 iterations. Float64 stays on orbit. The δ solve is then exact-on-top of a true orbit.
+- **Glitch safety:** NaN-safe `!(m2 < 256.0)` (a plain `m2 > 256` is false for NaN → silent no-escape); on NaN/Inf the pixel re-runs the full fsQuad DS loop (duplicated in-shader, rare path). Legitimate |δ| is bounded ~|z|+|w| ≤ 18, so no threshold heuristic needed — only NaN/Inf can reach the fallback.
+- **Interior reference (v4 — REQUIRED for correctness at any zoom):** the δ solve is exact, but a pixel's rendered value is a function of BOTH the reference orbit and c_ref. If c_ref escapes (center outside the set), every pixel in the view that has not escaped by the reference's escape iteration collapses onto the reference's own escape envelope — a flat color band — and the sentinel fallback re-runs those pixels as a SECOND (full-DS) realization, producing a blocky δ/fallback patchwork. Both artifacts are "valid" per-pixel yet collectively wrong-looking. Fix: `selectRefCenter(type, offX, offY)` always picks a BOUNDED c_ref — the view center if its 2000-iter f64 orbit stays |z|²<256 (O(1), no texture), else a nearby bounded point from a ring search (3^k rings, 96 angles, cache quantized to 1e-4; ~0.6–1 ms worst case, e.g. seahorse valley center at r≈6.6e-3). With a bounded c_ref the whole view renders on ONE clean δ realization (0 sentinel hits, 0 fallbacks) at any zoom — validated numerically (histograms/adjacency/distribution match the f64 rendering of the same view; plans tasks.md §11).
+- **Sentinel (last-resort safety net only):** `buildOrbitTexture` still fills texels after an escape with 1e15 (R channel) and the shader still detects `w.x > 1e4 || w.z > 1e4` and re-runs that pixel through the full double-single orbit. With interior reference selection this path is only reached if no bounded point exists within search radius — effectively never. The flat-band symptom at the spiral view (center outside the set) is now fixed by the interior reference, not by the fallback.
+- **Mode selection (CPU, `perturb.js`):** auto = always perturb for types {0,1,3}; simple On/Off toggle (legacy auto/force split collapsed — the sentinel fallback means no zoom regime where quad is preferable; `selectFamily`'s zoom/hysteresis params are kept for API compat, unused). Disabled entirely when float textures are unsupported (WebGL1 without OES_texture_float) — render paths fall back to the full-DS shader for that frame.
+- **Cost:** ~70 frounds/iter + 1 texture fetch/iter (cheaper than v1's ~170 frounds/iter with no fetch).
 
-- **v1 (now):** above. Files: `shaders/fsPerturb.glsl` (new; quad's DS fallback loop duplicated for glitch path), `perturb.js` (CPU mode selection + hysteresis state), `shaders.js` (+perturb program), `render.js` (program pick), `stateStore.js` (S.perturbMode: 'auto'|'off'|'force'), `index.html` (debug toggle: Auto/Off/Force), `perturb.test.js` (node: threshold/hysteresis/type-gating).
-- **v1.5 (typed/preset coordinates):** 256-bit BigInt fixed-point. Parse preset decimal strings directly (e.g. `-0.743643887037158704762` keeps all 24 digits — `parseFloat` currently destroys them). New uniforms `uADeltaHi/Lo` = `offset_bignum − c_ref_bignum` (exact small number, ~zoom magnitude); `δ_c = A + fx·zoom`. Bignum offset for deep pan. → reaches preset precision (~1e-24 with current 24-digit presets).
-- **v2 (1e-30):** glitch detection with orbit rebase (recompute reference from a glitched pixel), series approximation (polynomial fit on early orbit, skip to iter N), bignum orbit sent via WebGL2 RGBA32F texture (WebGL1 fragment uniform limit = 16 vec4, too small for an orbit array), Burning Ship / Sinusoidal perturbation.
+### v2 ceiling
 
-## 4. Error budget (v1, N=2000, parabolic worst case)
+Double *navigation* limit: offset is f64 (offsetHi f32 + offsetLo f32 = 2⁻⁴⁸ rel) → aiming quantizes at ~1e-15. Rendering at a fixed offset stays exact. → working range 1e-11 → ~1e-15.
 
-| Source | Rel. to δ | Pixels at any v1 zoom |
-|---|---|---|
-| DS op residual per step | 2⁻⁴⁸ | ~4e-15 · N ≈ 1e-11 |
-| DS orbit error 2εw·δ_n/step, εw≈7e-12 | ~1.4e-11/step | ≈ 3e-8 |
-| **Total** | | **≪ 1e-8 pixel** |
+## 3. Files
 
-## 5. Test plan
+- `reference.js` — `orbitBounded` (full-budget f64 probe), `selectRefCenter` (center-or-ring-search, quantized cache), `buildOrbitTexture` (f64 orbit, f32-pair packing, 1e15 sentinel tail — safety net), `computeReferenceOrbit` = select+build (returns texture data + c_ref), `createRefTexture` (WebGL2 RGBA32F / WebGL1 + OES_texture_float, NEAREST), `uploadRefOrbit` (returns c_ref for the shader uniforms)
+- `shaders/fsPerturb.glsl` — per-family δ init, DS recurrence, NaN-safe glitch + full-DS fallback, debug readout (self-test patch + center: R=iter/maxIter, G=log2|δ_final|, B=log2|w_last|), fsQuad-identical smooth coloring
+- `perturb.js` — selectFamily (auto/off, type gating, support flag; zoom params legacy-ignored)
+- `perturb.test.js` — Part A: selection unit tests; Part C: reference sanity + interior-reference selection (escaping center → bounded c_ref, no sentinel; low-level `buildOrbitTexture` still produces the sentinel tail); Part D: 11×11-px grids, fround-exact shader emulation vs float64 ground truth; Part E: interior-reference regression (spiral view: bounded ref, 0 fallbacks, diverse iterations) + synthetic sentinel net test (forces the safety-net path); Part F: boundary view (user-reported blocky view: 0 fallbacks/glitches, 81 distinct iters, not blockier than f64, ≥70% within 100 iter of f64)
+- wiring: `index.html` (4th hidden shader container, toggle button), `shaders.js` (program + uRefOrbit loc), `render.js` (both paths: family select, ref upload, TEXTURE0 bind, float-texture fallback), `stateStore.js` (perturbMode/perturbSupported), `main.js` (4th source, createRefTexture probe, toggle enable)
 
-1. **Node:** `perturb.test.js` — switch thresholds, hysteresis, type gating (2,4 never perturb).
-2. **Browser matrix (after 3.2 baseline is recorded):**
-   - 1e-11: quad vs perturb → visually identical (crossover sanity)
-   - 1e-12…1e-13: quad breaking, perturb clean (the money shot)
-   - 1e-14: perturb clean
-   - 1e-15: limit — rendering exact, aiming quantized (documented)
-   - FPS at 1e-13, N=2000 (expect ~1.5–2× quad cost; overlay shows mode)
-   - Fractal types 2/4 unaffected; debug mode works in perturb path
-3. **Regression:** zoom 150 (3.4) unchanged — it runs on quad (zoom ≫ 1e-10).
+## 4. CPU validation results (node perturb.test.js — ALL PASS)
 
-## 6. Out of scope (now)
+| Scene | zoom | max|Δiter| | >1-off | note |
+|---|---|---|---|---|
+| Mandelbrot seahorse | 1e-12 | 76 | 0/121 | 3/121 edge-chaotic (min ≥ 1000); interior c_ref = center here (bounded) |
+| Mandelbrot seahorse | 1e-15 | 0 | 0/121 | 3/121 edge-chaotic (escapes at 1800–1980) |
+| Mandelbrot cardioid cusp (0.25,0) | 1e-12 | 0 | 0/121 | proves per-step δ_c + 2× linear term |
+| Mandelbrot cusp right (0.2501,0) | 1e-12 | 0 | 0/121 | |
+| Julia boundary (-0.7269,-0.1889) | 1e-12 | 1 | 0/121 | chaotic by nature |
+| Julia smooth (2.5,0) | 1e-12 | 0 | 0/121 | |
+| Tricorn seahorse | 1e-12 | 0 | 0/121 | |
 
-UI coordinate entry widget, bignum orbit textures, rebase/series, BS/sinusoidal perturbation, WebGL2 migration.
+Regression guard: flipping the 2× linear term to 1× fails 121/121 (Julia) and 31/121 false in-set (seahorse) — the suite discriminates the exact recurrence.
+
+Chaotic-boundary methodology: a pixel "fails" only if |Δiter| > tol AND min(perturb, exact) < 1000 (EDGE_ITER); pixels escaping near the 2000-iter budget report `edgeChaotic` (informational) because no 2⁻⁴⁸/step method can match chaotic crossing times there — the f64 "ground truth" itself is one trajectory, not the set boundary.
+
+## 5. Staging toward 1e-30
+
+- **v1.5 (typed/preset coordinates):** 256-bit BigInt fixed-point; parse preset decimal strings directly (`parseFloat` destroys digits past 2⁻⁵³). New uniforms for exact bignum A = offset − c_ref. → ~1e-24 with 24-digit presets.
+- **v3 (1e-30):** glitch rebase (recompute reference from a glitched pixel), series approximation, bignum orbit via texture, Burning Ship / Sinusoidal perturbation.
+
+## 6. Pending browser validation (blocked: nono sandbox denies headless Chrome crashpad path)
+
+- [ ] shader compile/link; toggle enables (console probe)
+- [ ] **v4 interior reference:** user blocky view Mandelbrot (-0.7436, 0.1319) zoom ~2.5e-6 — expect smooth detail, NO flat band / NO quad-like blocks; confirm console shows `FRAC-BUILD v4-intref`; spiral view same check
+- [ ] deep-zoom regression: seahorse 1e-12/1e-15, Julia, Tricorn unchanged vs v3
+- [ ] visual parity quad vs perturb at 1e-11; deep-zoom correctness 1e-13…1e-15 (seahorse, cusp)
+- [ ] debug readouts: center R=iter/maxIter, G=log2|δ| (expect ~log2(zoom)·|pixel offset|), B=log2|w|
+- [ ] WebGL1 OES_texture_float path
+
+Remediation (from sandbox skill): restart with `nono run --profile pi --allow ~/Library/Application\ Support/Google/Chrome -- pi` (one-off) or a promoted profile draft.

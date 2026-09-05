@@ -1,0 +1,8 @@
+{
+  "name": "fractal-explorer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node dsMath.test.js && node splitPrecision.test.js && node perturb.test.js"
+  }
+}
